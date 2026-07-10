@@ -126,9 +126,12 @@ function buildEmbed(job: Job): Embed {
  * SQL semantics:
  *   status = 'new'
  *   AND match_score >= notify_min_score
+ *   AND remote_us_ok = true   (CONTRACT §Location filter — remote/US/no-relocation)
  *   AND (priority(role_category) <= 2 OR difficulty = 'easy')
  *   AND NOT EXISTS (prior job with same dedup_hash AND notified_at IS NOT NULL)
  *   ORDER BY match_score DESC, first_seen_at ASC, id ASC
+ *
+ * Jobs with remote_us_ok false or null are never notified.
  *
  * Then in-run dedup: keep only the first job per dedup_hash.
  */
@@ -138,6 +141,7 @@ async function selectEligible(db: Db, criteria: Criteria): Promise<Job[]> {
      from jobs j
      where j.status = 'new'
        and j.match_score >= $1
+       and j.remote_us_ok = true
        and (
          exists (
            select 1 from unnest($2::text[]) as rp_cat(cat)

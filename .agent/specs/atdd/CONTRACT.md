@@ -56,6 +56,7 @@ Stored as `text` with CHECK constraints (not Postgres enums), so adding values i
 - `posted_at` timestamptz null
 - `first_seen_at` timestamptz not null default now(), `last_seen_at` timestamptz not null default now()
 - `role_category` text null, `match_score` integer null (0–100), `match_reasons` text[] null
+- `remote_us_ok` boolean null — the remote-US-only signal (see §Location filter). null = not yet judged.
 - `ats` text not null default 'unknown', `difficulty` text not null default 'unknown', `difficulty_reasons` text[] null
 - `status` text not null default 'new'
 - `notes` text null (user notes from admin)
@@ -119,6 +120,7 @@ Default value:
   ],
   "exclude_keywords": ["angular", "vue", ".net", "wordpress", "drupal", "staff", "principal", "director", "manager"],
   "locations": { "remote_us": true, "states": ["CA"], "cities": [] },
+  "location_requirement": "Remote-only AND based in / open to the United States. EXCLUDE hybrid, on-site, non-US locations, and any posting that requires or asks about relocation.",
   "min_salary": null,
   "notify_min_score": 60
 }
@@ -127,8 +129,18 @@ Default value:
 Rules:
 - Priority 1 = React Native / mobile. Priority 2 = React, frontend. Priority 3 = fullstack/backend-leaning.
 - Priority-3 jobs are only notified when `difficulty = easy` (user: "if it's easy enough we can still apply").
-- **Notify when:** `status = new` AND `match_score >= notify_min_score` AND (priority ≤ 2 OR difficulty = easy) AND no already-notified job shares the same `dedup_hash`.
+- **Notify when:** `status = new` AND `match_score >= notify_min_score` AND `remote_us_ok = true` AND (priority ≤ 2 OR difficulty = easy) AND no already-notified job shares the same `dedup_hash`.
 - Jobs below threshold stay `new` (not notified) — lowering the threshold in admin makes the next run pick them up.
+
+## Location filter (remote-US-only, hard requirement)
+
+The user only wants jobs that are (a) **REMOTE-ONLY** — not hybrid, not on-site — AND (b) open to candidates **in the United States**, AND (c) do **NOT** require or ask about relocation. Everything else (hybrid, on-site, non-US e.g. "Remote - Mexico" / "United Kingdom" / "Toronto, Canada", or relocation-required) is excluded from Discord notifications.
+
+This is captured by the first-class `remote_us_ok` boolean on `jobs`:
+
+- **Judged by the scorer.** During match scoring the LLM reads each job's `location` field and the verbatim `criteria.location_requirement`, and returns `remote_us_ok`: true ONLY when the role is fully remote, open to US candidates, and does not require or ask about relocation; false for a non-US location, hybrid/on-site, or a relocation requirement; false when unclear. It is persisted alongside `role_category` / `match_score` / `match_reasons`.
+- **Deterministic relocation override.** For a Greenhouse job whose `raw.questions` contains a question whose field name or label mentions "relocat" (case-insensitive), `remote_us_ok` is forced **false** regardless of the model.
+- **Gates notification.** Only `remote_us_ok = true` jobs are notified; `false` or `null` (not yet judged) are never notified. See the notify rule above.
 
 ## Source adapter interface (`packages/core`)
 

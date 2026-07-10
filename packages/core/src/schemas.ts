@@ -28,6 +28,10 @@ export const Job = z.object({
   role_category: RoleCategory.nullable(),
   match_score: z.number().int().nullable(),
   match_reasons: z.array(z.string()).nullable(),
+  // Judged by the scorer (CONTRACT §Location filter). true = fully remote, open
+  // to US candidates, no relocation required; false = anything else; null = not
+  // yet judged. Gates Discord notification: only true is notified.
+  remote_us_ok: z.boolean().nullable(),
   ats: Ats,
   difficulty: Difficulty,
   difficulty_reasons: z.array(z.string()).nullable(),
@@ -126,6 +130,15 @@ export const Criteria = z.object({
     states: z.array(z.string()),
     cities: z.array(z.string()),
   }),
+  // A human-readable location requirement the scorer reads verbatim when judging
+  // `remote_us_ok` (CONTRACT §Location filter). Optional so older criteria rows
+  // still parse; defaults to the remote-US-only requirement.
+  location_requirement: z
+    .string()
+    .optional()
+    .default(
+      "Remote-only AND based in / open to the United States. EXCLUDE hybrid, on-site, non-US locations, and any posting that requires or asks about relocation.",
+    ),
   min_salary: z.number().int().nullable(),
   notify_min_score: z.number().int(),
 });
@@ -184,6 +197,8 @@ export const DEFAULT_CRITERIA: Criteria = Criteria.parse({
     "manager",
   ],
   locations: { remote_us: true, states: ["CA"], cities: [] },
+  location_requirement:
+    "Remote-only AND based in / open to the United States. EXCLUDE hybrid, on-site, non-US locations, and any posting that requires or asks about relocation.",
   min_salary: null,
   notify_min_score: 60,
 });

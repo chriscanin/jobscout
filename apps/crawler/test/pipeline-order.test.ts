@@ -100,6 +100,7 @@ function mockLlm(onCall?: () => void): LlmClient & { calls: LlmRequest[] } {
             role_category: "react-native",
             match_score: 85,
             match_reasons: ["react native match"],
+            remote_us_ok: true,
           })),
         );
       }

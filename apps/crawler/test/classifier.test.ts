@@ -97,10 +97,20 @@ function overloadedError(): Error {
  * Remap fixture placeholder ids (job-01…) onto real job ids by position, and
  * return the completion TEXT (a JSON array string) the mock LLM should emit.
  */
-function remapScores(res: FixtureEnvelope, realIds: string[]): string {
-  const arr = JSON.parse(envelopeText(res)) as Array<{ id: string }>;
+function remapScores(
+  res: FixtureEnvelope,
+  realIds: string[],
+  remoteUsOk = true,
+): string {
+  const arr = JSON.parse(envelopeText(res)) as Array<{
+    id: string;
+    remote_us_ok?: boolean;
+  }>;
   arr.forEach((row, i) => {
     if (i < realIds.length) row.id = realIds[i];
+    // Stamp the remote-US signal onto every fixture row (the captured fixtures
+    // predate this field). Defaults to true so the batch persists true.
+    row.remote_us_ok = remoteUsOk;
   });
   return JSON.stringify(arr);
 }
@@ -128,6 +138,7 @@ function makeJob(overrides: Partial<Job>): Job {
     role_category: null,
     match_score: null,
     match_reasons: null,
+    remote_us_ok: null,
     ats: "unknown",
     difficulty: "unknown",
     difficulty_reasons: null,
@@ -266,9 +277,15 @@ describe("S2 — 8-job batch is one default-tier call updating all 8 rows", () =
 
     expect(stats.scored).toBe(8);
 
-    // All 8 rows persisted with valid values.
+    // The prompt instructs the model on remote_us_ok and carries the location
+    // requirement verbatim.
+    expect(prompt).toContain("remote_us_ok");
+    expect(prompt).toContain(DEFAULT_CRITERIA.location_requirement);
+
+    // All 8 rows persisted with valid values, incl. remote_us_ok = true (parsed
+    // from the fixture rows this test stamps true).
     const rows = await db.query(
-      `select match_score, role_category, match_reasons from jobs where match_score is not null`,
+      `select match_score, role_category, match_reasons, remote_us_ok from jobs where match_score is not null`,
     );
     expect(rows.rows).toHaveLength(8);
     const enums = ["react-native", "react", "frontend", "fullstack", "other"];
@@ -279,7 +296,46 @@ describe("S2 — 8-job batch is one default-tier call updating all 8 rows", () =
       expect(enums).toContain(r.role_category);
       expect(r.match_reasons.length).toBeGreaterThanOrEqual(1);
       expect(r.match_reasons.length).toBeLessThanOrEqual(3);
+      expect(r.remote_us_ok).toBe(true);
     }
+  });
+
+  it("persists remote_us_ok = false when the model returns false (non-US/hybrid job)", async () => {
+    // A react-native job whose location is non-US; the model returns
+    // remote_us_ok = false for it.
+    const raw: RawJob = {
+      source: "greenhouse",
+      externalId: "gh-mx",
+      url: "https://example.com/mx",
+      title: "React Native Engineer",
+      company: "MexCo",
+      location: "Remote - Mexico",
+      description: "Build mobile apps with react native and expo",
+      raw: {},
+    };
+    const { job } = await upsertJob(db, raw);
+
+    const llm = mockLlm(() =>
+      JSON.stringify([
+        {
+          id: job.id,
+          role_category: "react-native",
+          match_score: 88,
+          match_reasons: ["strong react native match"],
+          remote_us_ok: false,
+        },
+      ]),
+    );
+    const deps: ClassifierDeps = { llm, fetchHtml: async () => "" };
+
+    await classifyPendingJobs(db, DEFAULT_CRITERIA, deps);
+
+    const r = await db.query(
+      `select remote_us_ok, match_score from jobs where id = $1`,
+      [job.id],
+    );
+    expect(r.rows[0].match_score).toBe(88);
+    expect(r.rows[0].remote_us_ok).toBe(false);
   });
 });
 
@@ -343,6 +399,83 @@ describe("S3 — ambiguous 40-70 score re-scored once by sonnet", () => {
     // B keeps the haiku values.
     expect(b.matchScore).toBe(85);
     expect(b.roleCategory).toBe("react-native");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S3b — Deterministic relocation-question override forces remote_us_ok = false
+// ---------------------------------------------------------------------------
+
+describe("S3b — greenhouse relocation question forces remote_us_ok false", () => {
+  it("overrides a model remote_us_ok=true to false when a question asks about relocation", async () => {
+    // Greenhouse job whose raw.questions include a relocation question. The model
+    // (misleadingly) returns remote_us_ok = true, but the deterministic override
+    // forces it false regardless.
+    const job = makeJob({
+      id: "cccccccc-cccc-4ccc-cccc-cccccccccccc",
+      source: "greenhouse",
+      title: "React Native Engineer",
+      description: "react native expo mobile",
+      raw: {
+        questions: [
+          {
+            label: "Are you willing to relocate?",
+            fields: [{ name: "relocation_ok", type: "boolean" }],
+          },
+        ],
+      },
+    });
+
+    const llm = mockLlm(() =>
+      JSON.stringify([
+        {
+          id: job.id,
+          role_category: "react-native",
+          match_score: 90,
+          match_reasons: ["strong match"],
+          remote_us_ok: true,
+        },
+      ]),
+    );
+    const deps: ClassifierDeps = { llm, fetchHtml: async () => "" };
+
+    const { outcomes, errors } = await scoreMatch([job], DEFAULT_CRITERIA, deps);
+
+    expect(errors).toEqual([]);
+    const o = outcomes.find((x) => x.jobId === job.id)!;
+    expect(o.matchScore).toBe(90);
+    // Deterministic override wins over the model's true.
+    expect(o.remoteUsOk).toBe(false);
+  });
+
+  it("also fires when only the field NAME (not label) contains relocat", async () => {
+    const job = makeJob({
+      id: "dddddddd-dddd-4ddd-dddd-dddddddddddd",
+      source: "greenhouse",
+      title: "React Native Engineer",
+      description: "react native expo mobile",
+      raw: {
+        questions: [
+          { fields: [{ name: "question_relocation_assistance" }] },
+        ],
+      },
+    });
+
+    const llm = mockLlm(() =>
+      JSON.stringify([
+        {
+          id: job.id,
+          role_category: "react-native",
+          match_score: 80,
+          match_reasons: ["match"],
+          remote_us_ok: true,
+        },
+      ]),
+    );
+    const deps: ClassifierDeps = { llm, fetchHtml: async () => "" };
+
+    const { outcomes } = await scoreMatch([job], DEFAULT_CRITERIA, deps);
+    expect(outcomes.find((x) => x.jobId === job.id)!.remoteUsOk).toBe(false);
   });
 });
 

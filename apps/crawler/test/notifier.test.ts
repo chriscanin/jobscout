@@ -99,6 +99,7 @@ async function classify(
     difficulty?: string;
     difficulty_reasons?: string[] | null;
     match_reasons?: string[] | null;
+    remote_us_ok?: boolean | null;
   },
 ): Promise<void> {
   const sets: string[] = [];
@@ -125,6 +126,11 @@ async function classify(
     sets.push(`match_reasons = $${p++}`);
     params.push(opts.match_reasons ?? null);
   }
+  // Default remote_us_ok to true (the notify gate) unless the test overrides it,
+  // so the eligibility/ordering/cap/dedup fixtures still notify. Tests that check
+  // the gate pass an explicit false/null.
+  sets.push(`remote_us_ok = $${p++}`);
+  params.push("remote_us_ok" in opts ? (opts.remote_us_ok ?? null) : true);
 
   if (sets.length === 0) return;
   params.push(jobId);
@@ -709,5 +715,82 @@ describe("S9 — same-run dedup collision", () => {
     expect(after1.notified_at).not.toBeNull();
     expect(after2.status).toBe("new");
     expect(after2.notified_at).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S10 — remote_us_ok gate (CONTRACT §Location filter)
+// ---------------------------------------------------------------------------
+describe("S10 — remote_us_ok gates notification", () => {
+  it("does not notify a perfect match whose remote_us_ok is false", async () => {
+    // Perfect match: score 90, react-native (priority 1), easy — but not remote/US.
+    const j = await insertJob(rawJob({ title: "RN Onsite", company: "OnsiteCo" }));
+    await classify(j.id, {
+      match_score: 90,
+      role_category: "react-native",
+      difficulty: "easy",
+      remote_us_ok: false,
+    });
+
+    const { fetchImpl, callCount } = makeMockFetch([]);
+    const result = await notifyNewMatches({
+      data: db,
+      criteria: CRITERIA,
+      webhookUrl: WEBHOOK_URL,
+      fetchImpl,
+    });
+
+    expect(callCount()).toBe(0);
+    expect(result).toEqual({ notifiedCount: 0, eligibleCount: 0 });
+    const after = await getJob(j.id);
+    expect(after.status).toBe("new");
+    expect(after.notified_at).toBeNull();
+  });
+
+  it("does not notify a perfect match whose remote_us_ok is null (not yet judged)", async () => {
+    const j = await insertJob(rawJob({ title: "RN Unjudged", company: "UnjudgedCo" }));
+    await classify(j.id, {
+      match_score: 90,
+      role_category: "react-native",
+      difficulty: "easy",
+      remote_us_ok: null,
+    });
+
+    const { fetchImpl, callCount } = makeMockFetch([]);
+    const result = await notifyNewMatches({
+      data: db,
+      criteria: CRITERIA,
+      webhookUrl: WEBHOOK_URL,
+      fetchImpl,
+    });
+
+    expect(callCount()).toBe(0);
+    expect(result).toEqual({ notifiedCount: 0, eligibleCount: 0 });
+    const after = await getJob(j.id);
+    expect(after.status).toBe("new");
+  });
+
+  it("notifies an otherwise-identical match whose remote_us_ok is true", async () => {
+    const j = await insertJob(rawJob({ title: "RN Remote US", company: "RemoteCo" }));
+    await classify(j.id, {
+      match_score: 90,
+      role_category: "react-native",
+      difficulty: "easy",
+      remote_us_ok: true,
+    });
+
+    const { fetchImpl, callCount } = makeMockFetch([ok204()]);
+    const result = await notifyNewMatches({
+      data: db,
+      criteria: CRITERIA,
+      webhookUrl: WEBHOOK_URL,
+      fetchImpl,
+    });
+
+    expect(callCount()).toBe(1);
+    expect(result).toEqual({ notifiedCount: 1, eligibleCount: 1 });
+    const after = await getJob(j.id);
+    expect(after.status).toBe("notified");
+    expect(after.notified_at).not.toBeNull();
   });
 });

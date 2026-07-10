@@ -56,6 +56,11 @@ export interface ScoreOutcome {
   roleCategory: RoleCategory;
   matchScore: number;
   matchReasons: string[];
+  /**
+   * Whether the role is fully remote, open to US candidates, and does not
+   * require relocation (CONTRACT §Location filter). Gates notification.
+   */
+  remoteUsOk: boolean;
 }
 
 /** The result of ranking one job's difficulty (spec 05 interface). */
@@ -89,8 +94,15 @@ const SCORE_ITEM_SCHEMA = {
     },
     match_score: { type: "integer" },
     match_reasons: { type: "array", items: { type: "string" } },
+    remote_us_ok: { type: "boolean" },
   },
-  required: ["id", "role_category", "match_score", "match_reasons"],
+  required: [
+    "id",
+    "role_category",
+    "match_score",
+    "match_reasons",
+    "remote_us_ok",
+  ],
 } as const;
 
 /** JSON Schema for the whole scoring-batch result (an array of scored jobs). */
@@ -171,6 +183,7 @@ interface RawScore {
   role_category: string;
   match_score: number;
   match_reasons: string[];
+  remote_us_ok: boolean;
 }
 
 /** Coerce a model role_category into the contract enum (fallback `other`). */
@@ -191,6 +204,22 @@ function clampScore(value: unknown): number {
 function clampReasons(value: unknown): string[] {
   const arr = Array.isArray(value) ? value.map(String).filter(Boolean) : [];
   return arr.length === 0 ? ["classified"] : arr.slice(0, 3);
+}
+
+/**
+ * Coerce a model `remote_us_ok` into a strict boolean (CONTRACT §Location
+ * filter). Only an explicit truthy signal (real `true`, or the strings "true"
+ * / "yes" / "1") counts as true; anything missing, unparseable, or falsey
+ * defaults to false so an unclear posting is never notified.
+ */
+function coerceBool(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    return v === "true" || v === "yes" || v === "1";
+  }
+  return false;
 }
 
 /**
@@ -222,6 +251,7 @@ function buildScorePrompt(jobs: Job[], criteria: Criteria): string {
     id: j.id,
     title: j.title,
     company: j.company,
+    // Surface `location` prominently so the model can judge remote_us_ok.
     location: j.location,
     description: (j.description ?? "").slice(0, SCORE_DESC_CHARS),
   }));
@@ -231,15 +261,23 @@ function buildScorePrompt(jobs: Job[], criteria: Criteria): string {
     "CRITERIA (verbatim JSON):",
     JSON.stringify(criteria),
     "",
+    "LOCATION REQUIREMENT (verbatim, read carefully):",
+    criteria.location_requirement,
+    "",
     "For EACH job below, return how well it matches these criteria.",
     "role_category MUST be one of: react-native | react | frontend | fullstack | other.",
     "match_score is an integer 0-100. match_reasons is 1-3 short strings.",
+    "",
+    "Judge the `location` field of each job for remote_us_ok:",
+    "remote_us_ok = true ONLY if the role is fully REMOTE (not hybrid, not on-site), open to candidates located in the UNITED STATES, and does not require or ask about relocation.",
+    'If the location is a non-US country/city (e.g. Mexico, United Kingdom, Canada), or says hybrid/on-site, or the posting requires relocation, set remote_us_ok = false.',
+    "When unclear, set false.",
     "",
     "JOBS (JSON):",
     JSON.stringify(compact),
     "",
     "Respond with ONLY a JSON array, one object per job, each:",
-    '{ "id": "<job id>", "role_category": "<enum>", "match_score": <0-100>, "match_reasons": ["...", "..."] }',
+    '{ "id": "<job id>", "role_category": "<enum>", "match_score": <0-100>, "match_reasons": ["...", "..."], "remote_us_ok": <true|false> }',
   ].join("\n");
 }
 
@@ -273,6 +311,9 @@ async function scoreBatch(
         role_category: String(r.role_category),
         match_score: clampScore(r.match_score),
         match_reasons: clampReasons(r.match_reasons),
+        remote_us_ok: coerceBool(
+          (r as { remote_us_ok?: unknown }).remote_us_ok,
+        ),
       });
     }
   }
@@ -305,6 +346,8 @@ export async function scoreMatch(
         roleCategory: "other",
         matchScore: 0,
         matchReasons: [p.reason],
+        // Prescreen-excluded jobs are never notified; not judged for remote-US.
+        remoteUsOk: false,
       });
     } else {
       survivors.push(job);
@@ -349,18 +392,47 @@ export async function scoreMatch(
     }
   }
 
-  // 4. Emit outcomes — sonnet overrides haiku when present.
+  // 4. Emit outcomes — sonnet overrides haiku when present. A deterministic
+  //    relocation-question override forces remote_us_ok = false regardless of
+  //    the model (CONTRACT §Location filter).
   for (const job of scoredJobs) {
     const final = sonnetById.get(job.id) ?? haikuById.get(job.id)!;
+    const remoteUsOk = asksAboutRelocation(job) ? false : final.remote_us_ok;
     outcomes.push({
       jobId: job.id,
       roleCategory: coerceRole(final.role_category),
       matchScore: clampScore(final.match_score),
       matchReasons: clampReasons(final.match_reasons),
+      remoteUsOk,
     });
   }
 
   return { outcomes, errors };
+}
+
+/**
+ * Deterministic relocation override (CONTRACT §Location filter). For a
+ * Greenhouse job whose `raw.questions` contains a question whose field name or
+ * label mentions "relocat" (case-insensitive), the posting asks about
+ * relocation, so `remote_us_ok` is forced false regardless of the model. Reuses
+ * the same `questionsOf()` helper the difficulty rule uses.
+ */
+function asksAboutRelocation(job: Job): boolean {
+  if (job.source !== "greenhouse") return false;
+  const questions = questionsOf(job);
+  if (questions === null) return false;
+  for (const q of questions) {
+    if (typeof q.label === "string" && /relocat/i.test(q.label)) return true;
+    for (const field of q.fields ?? []) {
+      if (typeof field?.name === "string" && /relocat/i.test(field.name)) {
+        return true;
+      }
+      if (typeof field?.label === "string" && /relocat/i.test(field.label)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +441,8 @@ export async function scoreMatch(
 
 /** Greenhouse `raw.questions` entry shape (a subset we rely on). */
 interface GreenhouseQuestion {
-  fields?: Array<{ name?: string }>;
+  label?: string;
+  fields?: Array<{ name?: string; label?: string }>;
 }
 
 /** The reference examples the fallback prompt must carry verbatim (spec 05 §2). */
@@ -601,9 +674,10 @@ export async function classifyPendingJobs(
   errors.push(...scoreResult.errors);
   for (const o of scoreResult.outcomes) {
     await db.query(
-      `update jobs set role_category = $2, match_score = $3, match_reasons = $4
+      `update jobs set role_category = $2, match_score = $3, match_reasons = $4,
+                       remote_us_ok = $5
        where id = $1 and match_score is null`,
-      [o.jobId, o.roleCategory, o.matchScore, o.matchReasons],
+      [o.jobId, o.roleCategory, o.matchScore, o.matchReasons, o.remoteUsOk],
     );
   }
 

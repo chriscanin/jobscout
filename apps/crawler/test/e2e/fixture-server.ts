@@ -137,6 +137,8 @@ function scoreResponseFor(prompt: string): string {
         role_category: "react-native",
         match_score: 88,
         match_reasons: ["title matches react native", "remote us"],
+        // The react-native fixture job is remote/US so scenario 2 still notifies.
+        remote_us_ok: true,
       };
     }
     if (isWeb) {
@@ -145,6 +147,7 @@ function scoreResponseFor(prompt: string): string {
         role_category: "frontend",
         match_score: 82,
         match_reasons: ["title matches frontend keyword"],
+        remote_us_ok: true,
       };
     }
     return {
@@ -152,6 +155,7 @@ function scoreResponseFor(prompt: string): string {
       role_category: "other",
       match_score: 5,
       match_reasons: ["no strong keyword match"],
+      remote_us_ok: false,
     };
   });
   return JSON.stringify(rows);
