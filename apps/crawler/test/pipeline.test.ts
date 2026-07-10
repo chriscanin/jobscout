@@ -5,7 +5,7 @@
  * applied, criteria row seeded) with:
  *   - stub adapters injected via `opts.adapters` (in-memory SourceAdapters),
  *   - a mock LLM client so classification is deterministic (all stub jobs
- *     score >= 60, role_category priority <= 2 → notify-eligible, difficulty easy),
+ *     score >= 50, role_category priority <= 3 → notify-eligible, difficulty easy),
  *   - a mock Discord fetch (records POST bodies; no real webhook),
  *   - an injected `acquireLock` so the single-flight branch is deterministic
  *     (PGlite has one connection and cannot model two contending sessions).

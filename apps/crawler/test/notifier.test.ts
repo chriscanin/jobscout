@@ -77,7 +77,7 @@ function serverError500(): Response {
 
 const WEBHOOK_URL = "https://discord.com/api/webhooks/test/hook";
 
-const CRITERIA: Criteria = DEFAULT_CRITERIA; // notify_min_score = 60
+const CRITERIA: Criteria = DEFAULT_CRITERIA; // notify_min_score = 50
 
 /**
  * Insert a job into the DB via upsertJob and optionally mark it notified.
@@ -216,16 +216,17 @@ describe("S1 — happy path", () => {
 // S2 — Eligibility filtering
 // ---------------------------------------------------------------------------
 describe("S2 — eligibility filtering", () => {
-  it("notifies only C (fullstack easy) and F (frontend unknown)", async () => {
-    // A: score 55, react-native, easy — below threshold
+  it("notifies B (fullstack medium), C (fullstack easy), and F (frontend unknown)", async () => {
+    // A: score 45, react-native, easy — below the notify_min_score (50) threshold
     const jA = await insertJob(rawJob({ title: "A", company: "Co" }));
-    await classify(jA.id, { match_score: 55, role_category: "react-native", difficulty: "easy" });
+    await classify(jA.id, { match_score: 45, role_category: "react-native", difficulty: "easy" });
 
-    // B: score 80, fullstack (priority 3), medium — fails priority/difficulty rule
+    // B: score 80, fullstack (priority 3), medium — now notified like priorities
+    //    1-2 (remote_us_ok = true), NOT gated on difficulty = easy anymore.
     const jB = await insertJob(rawJob({ title: "B", company: "CoB" }));
     await classify(jB.id, { match_score: 80, role_category: "fullstack", difficulty: "medium" });
 
-    // C: score 80, fullstack (priority 3), easy — passes (difficulty = easy)
+    // C: score 80, fullstack (priority 3), easy — passes (priority <= 3)
     const jC = await insertJob(rawJob({ title: "C", company: "CoC" }));
     await classify(jC.id, { match_score: 80, role_category: "fullstack", difficulty: "easy" });
 
@@ -247,6 +248,11 @@ describe("S2 — eligibility filtering", () => {
     const jF = await insertJob(rawJob({ title: "F", company: "CoF" }));
     await classify(jF.id, { match_score: 70, role_category: "frontend", difficulty: "unknown" });
 
+    // G: score 80, role_category "other" (no priority entry → 99), medium —
+    //    excluded because priority > 3 and difficulty != easy.
+    const jG = await insertJob(rawJob({ title: "G", company: "CoG" }));
+    await classify(jG.id, { match_score: 80, role_category: "other", difficulty: "medium" });
+
     let capturedBody: any;
     const fetchImpl: FetchImpl = async (_input, init) => {
       capturedBody = JSON.parse(init!.body as string);
@@ -260,24 +266,101 @@ describe("S2 — eligibility filtering", () => {
       fetchImpl,
     });
 
-    // Should notify C (score 80) and F (score 70)
-    expect(capturedBody.embeds).toHaveLength(2);
+    // Should notify B (80), C (80), and F (70) — all remote_us_ok = true, score
+    // >= 50, priority <= 3. Fullstack B is included even though it is medium.
+    expect(capturedBody.embeds).toHaveLength(3);
     const embedTitles = capturedBody.embeds.map((e: any) => e.title as string);
+    expect(embedTitles.some((t: string) => t.startsWith("B"))).toBe(true);
     expect(embedTitles.some((t: string) => t.startsWith("C"))).toBe(true);
     expect(embedTitles.some((t: string) => t.startsWith("F"))).toBe(true);
 
-    // A, B, D stay new with no notified_at
+    // A (below threshold), D (dedup-suppressed), and G ("other", not easy) stay
+    // new with no notified_at.
     const rA = await getJob(jA.id);
-    const rB = await getJob(jB.id);
     const rD = await getJob(jD.id);
+    const rG = await getJob(jG.id);
     expect(rA.status).toBe("new");
     expect(rA.notified_at).toBeNull();
-    expect(rB.status).toBe("new");
-    expect(rB.notified_at).toBeNull();
     expect(rD.status).toBe("new");
     expect(rD.notified_at).toBeNull();
+    expect(rG.status).toBe("new");
+    expect(rG.notified_at).toBeNull();
 
-    expect(result.notifiedCount).toBe(2);
+    // B was notified (the key behavior change).
+    const rB = await getJob(jB.id);
+    expect(rB.status).toBe("notified");
+    expect(rB.notified_at).not.toBeNull();
+
+    expect(result.notifiedCount).toBe(3);
+  });
+
+  it("notifies a remote-US fullstack (priority 3) job that is not easy", async () => {
+    const j = await insertJob(rawJob({ title: "FS Remote US", company: "FullstackCo" }));
+    await classify(j.id, {
+      match_score: 65,
+      role_category: "fullstack",
+      difficulty: "medium",
+      remote_us_ok: true,
+    });
+
+    const { fetchImpl, callCount } = makeMockFetch([ok204()]);
+    const result = await notifyNewMatches({
+      data: db,
+      criteria: CRITERIA,
+      webhookUrl: WEBHOOK_URL,
+      fetchImpl,
+    });
+
+    expect(callCount()).toBe(1);
+    expect(result).toEqual({ notifiedCount: 1, eligibleCount: 1 });
+    const after = await getJob(j.id);
+    expect(after.status).toBe("notified");
+    expect(after.notified_at).not.toBeNull();
+  });
+
+  it("does not notify a role_category 'other' job unless it is easy", async () => {
+    // "other" has no priority entry → treated as priority 99. Not easy → excluded.
+    const jOther = await insertJob(rawJob({ title: "Other Medium", company: "OtherCo" }));
+    await classify(jOther.id, {
+      match_score: 90,
+      role_category: "other",
+      difficulty: "medium",
+      remote_us_ok: true,
+    });
+
+    // An easy "other" job IS notified (difficulty = easy branch).
+    const jOtherEasy = await insertJob(rawJob({ title: "Other Easy", company: "OtherEasyCo" }));
+    await classify(jOtherEasy.id, {
+      match_score: 90,
+      role_category: "other",
+      difficulty: "easy",
+      remote_us_ok: true,
+    });
+
+    let capturedBody: any;
+    const fetchImpl: FetchImpl = async (_input, init) => {
+      capturedBody = JSON.parse(init!.body as string);
+      return ok204();
+    };
+
+    const result = await notifyNewMatches({
+      data: db,
+      criteria: CRITERIA,
+      webhookUrl: WEBHOOK_URL,
+      fetchImpl,
+    });
+
+    // Only the easy "other" job is notified.
+    expect(capturedBody.embeds).toHaveLength(1);
+    expect(capturedBody.embeds[0].title).toBe("Other Easy at OtherEasyCo");
+    expect(result.notifiedCount).toBe(1);
+
+    const rOther = await getJob(jOther.id);
+    expect(rOther.status).toBe("new");
+    expect(rOther.notified_at).toBeNull();
+
+    const rOtherEasy = await getJob(jOtherEasy.id);
+    expect(rOtherEasy.status).toBe("notified");
   });
 });
 
@@ -601,9 +684,9 @@ describe("S7 — 429 retry_after handling", () => {
 // ---------------------------------------------------------------------------
 describe("S8 — zero eligible", () => {
   it("makes no HTTP calls when no jobs are eligible", async () => {
-    // Job below threshold
+    // Job below threshold (notify_min_score = 50, so 40 stays new)
     const j1 = await insertJob(rawJob());
-    await classify(j1.id, { match_score: 50, role_category: "react-native", difficulty: "easy" });
+    await classify(j1.id, { match_score: 40, role_category: "react-native", difficulty: "easy" });
 
     // Job already notified
     const j2 = await insertJob(rawJob({ title: "Already Done", company: "AnotherCo" }));

@@ -174,7 +174,7 @@ describe("pipeline order — classify precedes notify", () => {
     );
 
     expect(summary.ok).toBe(true);
-    // The job was notified, which is only possible if it was scored >= 60 first.
+    // The job was notified, which is only possible if it was scored >= 50 first.
     expect(summary.notifiedCount).toBe(1);
     // The first classify call strictly precedes the first notify POST.
     const firstClassify = timeline.indexOf("classify");

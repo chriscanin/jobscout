@@ -28,7 +28,7 @@ describe("DEFAULT_CRITERIA", () => {
   it("is importable and has the correct structure", () => {
     expect(DEFAULT_CRITERIA).toBeDefined();
     expect(DEFAULT_CRITERIA.role_priorities).toHaveLength(4);
-    expect(DEFAULT_CRITERIA.notify_min_score).toBe(60);
+    expect(DEFAULT_CRITERIA.notify_min_score).toBe(50);
     expect(DEFAULT_CRITERIA.locations.remote_us).toBe(true);
     expect(DEFAULT_CRITERIA.locations.states).toContain("CA");
   });

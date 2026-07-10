@@ -52,7 +52,7 @@ const MAX_JOBS_PER_RUN = 30;
 
 /**
  * Resolve the priority of a role_category from the criteria.
- * Unlisted categories (incl. null) → treated as priority > 2 (i.e. 99).
+ * Unlisted categories (incl. null) → treated as priority > 3 (i.e. 99).
  */
 function rolePriority(
   roleCategory: string | null,
@@ -127,10 +127,13 @@ function buildEmbed(job: Job): Embed {
  *   status = 'new'
  *   AND match_score >= notify_min_score
  *   AND remote_us_ok = true   (CONTRACT §Location filter — remote/US/no-relocation)
- *   AND (priority(role_category) <= 2 OR difficulty = 'easy')
+ *   AND (priority(role_category) <= 3 OR difficulty = 'easy')
  *   AND NOT EXISTS (prior job with same dedup_hash AND notified_at IS NOT NULL)
  *   ORDER BY match_score DESC, first_seen_at ASC, id ASC
  *
+ * Priority <= 3 means react-native (1), react/frontend (2), and fullstack (3)
+ * are all notified when remote_us_ok = true and the score clears the threshold;
+ * role_category "other" (no priority entry → 99) is still excluded unless easy.
  * Jobs with remote_us_ok false or null are never notified.
  *
  * Then in-run dedup: keep only the first job per dedup_hash.
@@ -151,7 +154,7 @@ async function selectEligible(db: Db, criteria: Criteria): Promise<Job[]> {
                           lateral (select (p_elem->>'category') as category, (p_elem->>'priority')::int as priority) as p
                      where p.category = j.role_category
                    ) as p on true
-                   where p.priority <= 2
+                   where p.priority <= 3
                      and rp_cat.cat = j.role_category
          )
          or j.difficulty = 'easy'
@@ -166,7 +169,7 @@ async function selectEligible(db: Db, criteria: Criteria): Promise<Job[]> {
     [
       criteria.notify_min_score,
       criteria.role_priorities
-        .filter((rp) => rp.priority <= 2)
+        .filter((rp) => rp.priority <= 3)
         .map((rp) => rp.category),
       JSON.stringify(criteria.role_priorities),
     ],

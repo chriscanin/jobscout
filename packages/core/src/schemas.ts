@@ -200,5 +200,5 @@ export const DEFAULT_CRITERIA: Criteria = Criteria.parse({
   location_requirement:
     "Remote-only AND based in / open to the United States. EXCLUDE hybrid, on-site, non-US locations, and any posting that requires or asks about relocation.",
   min_salary: null,
-  notify_min_score: 60,
+  notify_min_score: 50,
 });

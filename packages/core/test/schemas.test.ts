@@ -5,7 +5,7 @@ import { Criteria, DEFAULT_CRITERIA } from "../src/schemas.js";
 describe("DEFAULT_CRITERIA", () => {
   it("parses against the Criteria schema", () => {
     expect(() => Criteria.parse(DEFAULT_CRITERIA)).not.toThrow();
-    expect(DEFAULT_CRITERIA.notify_min_score).toBe(60);
+    expect(DEFAULT_CRITERIA.notify_min_score).toBe(50);
   });
 
   it("rejects a malformed criteria object", () => {

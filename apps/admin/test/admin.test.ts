@@ -270,7 +270,7 @@ describe("S5 — criteria edit persists", () => {
 
     // Seed criteria (migration already inserts default; read it back)
     const before = await getCriteria(db);
-    expect(before.notify_min_score).toBe(60);
+    expect(before.notify_min_score).toBe(50);
 
     const updatedBefore = await db.query(
       `SELECT updated_at FROM criteria WHERE id = 1`,

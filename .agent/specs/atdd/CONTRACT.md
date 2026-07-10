@@ -122,14 +122,14 @@ Default value:
   "locations": { "remote_us": true, "states": ["CA"], "cities": [] },
   "location_requirement": "Remote-only AND based in / open to the United States. EXCLUDE hybrid, on-site, non-US locations, and any posting that requires or asks about relocation.",
   "min_salary": null,
-  "notify_min_score": 60
+  "notify_min_score": 50
 }
 ```
 
 Rules:
 - Priority 1 = React Native / mobile. Priority 2 = React, frontend. Priority 3 = fullstack/backend-leaning.
-- Priority-3 jobs are only notified when `difficulty = easy` (user: "if it's easy enough we can still apply").
-- **Notify when:** `status = new` AND `match_score >= notify_min_score` AND `remote_us_ok = true` AND (priority ≤ 2 OR difficulty = easy) AND no already-notified job shares the same `dedup_hash`.
+- Priority-3 (fullstack) jobs are notified like priorities 1–2 whenever `remote_us_ok = true` and the score clears the threshold (the remote-US feed was too sparse to gate them on `difficulty = easy`). A `role_category` with no priority entry ("other" → priority 99) is still only notified when `difficulty = easy`.
+- **Notify when:** `status = new` AND `match_score >= notify_min_score` AND `remote_us_ok = true` AND (priority ≤ 3 OR difficulty = easy) AND no already-notified job shares the same `dedup_hash`.
 - Jobs below threshold stay `new` (not notified) — lowering the threshold in admin makes the next run pick them up.
 
 ## Location filter (remote-US-only, hard requirement)
