@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Representative ZipRecruiter search-results page. Real captures via curl return Cloudflare 403 challenge. This fixture reflects the real ZipRecruiter DOM structure based on public documentation. Job listing IDs are embedded at the end of the job URL path before any query string: j3n5v0680ctp58bvnbx, j3q6t174xmxlmyw91ry, j3r8p259ynylnzw02sz. These match real ZipRecruiter listing ID formats (alphanumeric, 19 chars). URLs include tracking query params that must be stripped."
+}

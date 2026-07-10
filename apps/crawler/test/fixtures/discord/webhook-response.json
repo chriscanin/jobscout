@@ -1,0 +1,12 @@
+{
+  "status": 204,
+  "headers": {
+    "content-type": "",
+    "x-ratelimit-bucket": "representativevalue",
+    "x-ratelimit-limit": "5",
+    "x-ratelimit-remaining": "4",
+    "x-ratelimit-reset": "1720483200.0",
+    "x-ratelimit-reset-after": "0.5"
+  },
+  "body": ""
+}

@@ -1,0 +1,16 @@
+{
+  "id": "msg_zz8ex0kcufg",
+  "model": "claude-haiku-4-5",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "[{\"id\":\"job-A\",\"role_category\":\"frontend\",\"match_score\":55,\"match_reasons\":[\"partial keyword match\",\"location mismatch\"]},{\"id\":\"job-B\",\"role_category\":\"react-native\",\"match_score\":85,\"match_reasons\":[\"strong react native match\",\"remote US\"]}]"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 812,
+    "output_tokens": 120
+  }
+}

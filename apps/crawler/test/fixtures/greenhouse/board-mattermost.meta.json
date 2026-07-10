@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "provenance": "Representative fixture for GET https://boards-api.greenhouse.io/v1/boards/mattermost/jobs. The real Greenhouse boards API is public/unauthenticated. A real capture would be identical in shape; this representative version uses the same job data already captured in job-5238290008-questions.json.",
+  "source_url": "https://boards-api.greenhouse.io/v1/boards/mattermost/jobs"
+}

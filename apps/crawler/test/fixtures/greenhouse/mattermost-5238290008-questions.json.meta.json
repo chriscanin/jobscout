@@ -1,0 +1,8 @@
+{
+  "state": "representative",
+  "derivedFrom": "real-capture",
+  "source": "GET https://boards-api.greenhouse.io/v1/boards/mattermost/jobs/5238290008?questions=true",
+  "capturedAt": "2026-07-09",
+  "mutation": "value-only, deletion-only. Started from the real Mattermost 5238290008 capture (the same bytes as greenhouse/job-5238290008-questions.json). The live posting carries custom questions (GitHub profile, why-us, visa/sponsorship, security-clearance, export-control, legal-name) plus companion textarea/location fields, which make it a MEDIUM example. To exercise the S4 'standard-questions-only => easy' path with a payload whose every question field name is in the exact CONTRACT STANDARD_GREENHOUSE_QUESTIONS set {first_name,last_name,email,phone,resume,cover_letter,linkedin,website,location}, every question object whose fields include any non-standard field name was deleted, and within the kept questions the companion non-standard fields (resume_text, cover_letter_text) were deleted. No field object was otherwise edited — the retained question/field objects are verbatim from the live capture. location_questions (longitude/latitude/location hidden inputs) were removed as they are non-standard by name. A live Greenhouse job with only the nine contract-standard field names could not be found on the public boards API on the capture date (modern boards name every link/screening field question_XXXXX), so this fixture is honestly marked representative rather than real-capture.",
+  "result": "easy (all remaining question field names are within STANDARD_GREENHOUSE_QUESTIONS)"
+}

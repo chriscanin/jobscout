@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Representative Indeed search-results page. Real captures via curl return Cloudflare 403 challenge. This fixture reflects the real Indeed DOM structure based on public documentation and the blocked-403.html body. job links carry data-jk and href with jk param; some hrefs carry extra tracking params (fccid, vjs, from, tk, sal) to exercise the jk-only extraction. job beef789cafe0002b has extra params beyond jk in its href to assert tracking-junk stripping."
+}

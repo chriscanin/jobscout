@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Job Search Results - CalJobs</title>
+</head>
+<body>
+  <form id="aspnetForm" method="post" action="/vosnet/jobbanks/jobsearch.aspx">
+    <input type="hidden" name="__VIEWSTATE" value="dDwxMjM0NTY3ODk7Oz4=" />
+    <input type="hidden" name="__EVENTVALIDATION" value="dDwxMjM0NTY3ODk7Oz4=" />
+  </form>
+
+  <div id="ctl00_ContentPlaceHolder1_pnlResults">
+    <table class="gridView" id="ctl00_ContentPlaceHolder1_gvwJobBankResults">
+      <thead>
+        <tr>
+          <th>Job Title</th>
+          <th>Employer</th>
+          <th>Location</th>
+          <th>Posted</th>
+          <th>Job Order #</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="gridViewRow">
+          <td class="jobTitle">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=abc&amp;jbid=CA-20240001" class="jobTitleLink">
+              Senior React Native Developer
+            </a>
+          </td>
+          <td class="employer">Acme State Agency</td>
+          <td class="location">Sacramento, CA</td>
+          <td class="postedDate">07/01/2026</td>
+          <td class="jobOrderNum">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=abc&amp;jbid=CA-20240001">CA-20240001</a>
+          </td>
+        </tr>
+        <tr class="gridViewRow">
+          <td class="jobTitle">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=def&amp;jbid=CA-20240002" class="jobTitleLink">
+              Frontend Engineer
+            </a>
+          </td>
+          <td class="employer">California Dept of Technology</td>
+          <td class="location">Los Angeles, CA</td>
+          <td class="postedDate">07/02/2026</td>
+          <td class="jobOrderNum">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=def&amp;jbid=CA-20240002">CA-20240002</a>
+          </td>
+        </tr>
+        <tr class="gridViewRow">
+          <td class="jobTitle">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=ghi&amp;jbid=CA-20240003" class="jobTitleLink">
+              Software Engineer - Mobile
+            </a>
+          </td>
+          <td class="employer">TechCo Inc</td>
+          <td class="location">San Francisco, CA</td>
+          <td class="postedDate">07/03/2026</td>
+          <td class="jobOrderNum">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=ghi&amp;jbid=CA-20240003">CA-20240003</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="pagination" id="ctl00_ContentPlaceHolder1_pnlPager">
+      <span class="pageCount">Page 1 of 2</span>
+      <a href="/vosnet/jobbanks/jobsearch.aspx?pg=2" class="pageLink">Next</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "provenance": "Representative fixture for GET https://api.lever.co/v0/postings/{site}?mode=json. The real Lever postings API is public/unauthenticated. Shape matches the actual Lever v0 postings API array response. Site slug used in tests: 'exampleco'.",
+  "source_url": "https://api.lever.co/v0/postings/exampleco?mode=json"
+}

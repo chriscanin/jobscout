@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "data": {
+    "organization": {
+      "name": "Linear",
+      "jobBoard": {
+        "jobPostings": [
+          {
+            "id": "frontend-engineer-abc123",
+            "title": "Frontend Engineer",
+            "teamName": "Product",
+            "locationName": "Remote",
+            "employmentType": "FullTime",
+            "isRemote": true,
+            "publishedAt": "2026-06-01T00:00:00.000Z",
+            "externalLink": "https://jobs.ashbyhq.com/linear/frontend-engineer-abc123"
+          }
+        ]
+      }
+    }
+  }
+}

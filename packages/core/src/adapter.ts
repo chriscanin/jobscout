@@ -25,13 +25,18 @@ export type FetchHelper = (
 /**
  * Context handed to each adapter's `fetchJobs` (CONTRACT §Source adapter
  * interface): the current matching criteria, the active companies for this
- * source, a polite fetch helper, and a logger.
+ * source, a polite fetch helper, a logger, and a recordError channel.
+ *
+ * `recordError(message)` is the single channel the pipeline aggregates into
+ * `crawl_runs.stats[source].errors`. Adapters must call this (not logger.error)
+ * for per-company failures so the pipeline can surface them.
  */
 export interface CrawlCtx {
   criteria: Criteria;
   companies: Company[];
   fetch: FetchHelper;
   logger: Logger;
+  recordError: (message: string) => void;
 }
 
 /**

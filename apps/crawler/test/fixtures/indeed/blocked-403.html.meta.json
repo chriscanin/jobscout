@@ -1,0 +1,7 @@
+{
+  "state": "blocked-capture",
+  "captureUrl": "https://www.indeed.com/jobs?q=react+developer&l=remote&remotejob=032b3046-06a3-4876-8dfd-474eb5e7ed11",
+  "captureDate": "2026-07-09",
+  "httpStatus": 403,
+  "notes": "Cloudflare managed challenge page. Contains INDEED_CLOUDFLARE_STATIC_PAGE with PAGE_TYPE='captcha'. Markers present: 'captcha', 'cf-chl', 'Just a moment' (title says 'Security Check'). Real blocked response captured via curl with browser UA."
+}

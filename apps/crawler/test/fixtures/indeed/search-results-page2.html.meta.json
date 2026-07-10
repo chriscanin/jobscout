@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Mechanical mutation of search-results-page1.html: all jk ids replaced with distinct page-2 values (1111aaaa2222bbbb, 3333cccc4444dddd), titles/companies changed for page-2, pagination Next link points to start=20. Used for I4 pagination cap test."
+}

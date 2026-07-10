@@ -1,0 +1,40 @@
+[
+  {
+    "id": "abc12345-0000-0000-0000-000000000001",
+    "text": "Senior React Native Engineer",
+    "hostedUrl": "https://jobs.lever.co/exampleco/abc12345-0000-0000-0000-000000000001",
+    "applyUrl": "https://jobs.lever.co/exampleco/abc12345-0000-0000-0000-000000000001/apply",
+    "categories": {
+      "team": "Engineering",
+      "department": "Product",
+      "location": "Remote",
+      "allLocations": ["Remote"],
+      "commitment": "Full-time"
+    },
+    "tags": ["engineering", "mobile"],
+    "descriptionPlain": "We are looking for a Senior React Native Engineer to join our mobile team. You will build and maintain our iOS and Android apps using React Native and Expo.\n\nRequirements:\n- 4+ years of React Native experience\n- Strong TypeScript skills\n- Experience with Expo and EAS Build\n- Familiarity with state management (Redux, Zustand)\n- Experience with REST APIs and GraphQL",
+    "description": "<p>We are looking for a <strong>Senior React Native Engineer</strong> to join our mobile team.</p>",
+    "createdAt": 1751500800000,
+    "updatedAt": 1751500800000,
+    "workplaceType": "remote"
+  },
+  {
+    "id": "abc12345-0000-0000-0000-000000000002",
+    "text": "Frontend Engineer",
+    "hostedUrl": "https://jobs.lever.co/exampleco/abc12345-0000-0000-0000-000000000002",
+    "applyUrl": "https://jobs.lever.co/exampleco/abc12345-0000-0000-0000-000000000002/apply",
+    "categories": {
+      "team": "Engineering",
+      "department": "Product",
+      "location": "San Francisco, CA",
+      "allLocations": ["San Francisco, CA"],
+      "commitment": "Full-time"
+    },
+    "tags": ["engineering", "frontend"],
+    "descriptionPlain": "We are looking for a Frontend Engineer with React experience.",
+    "description": "<p>We are looking for a <strong>Frontend Engineer</strong> with React experience.</p>",
+    "createdAt": 1751414400000,
+    "updatedAt": 1751414400000,
+    "workplaceType": "on-site"
+  }
+]

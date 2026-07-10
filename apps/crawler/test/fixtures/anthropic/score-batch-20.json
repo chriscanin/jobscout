@@ -1,0 +1,16 @@
+{
+  "id": "msg_d6xtp33eafk",
+  "model": "claude-haiku-4-5",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "[{\"id\":\"job-01\",\"role_category\":\"react\",\"match_score\":11,\"match_reasons\":[\"title matches react keyword\",\"score 11 in band\"]},{\"id\":\"job-02\",\"role_category\":\"frontend\",\"match_score\":74,\"match_reasons\":[\"title matches frontend keyword\"]},{\"id\":\"job-03\",\"role_category\":\"fullstack\",\"match_score\":13,\"match_reasons\":[\"title matches fullstack keyword\",\"score 13 in band\"]},{\"id\":\"job-04\",\"role_category\":\"react-native\",\"match_score\":76,\"match_reasons\":[\"title matches react-native keyword\"]},{\"id\":\"job-05\",\"role_category\":\"react\",\"match_score\":15,\"match_reasons\":[\"title matches react keyword\",\"score 15 in band\"]},{\"id\":\"job-06\",\"role_category\":\"frontend\",\"match_score\":78,\"match_reasons\":[\"title matches frontend keyword\"]},{\"id\":\"job-07\",\"role_category\":\"fullstack\",\"match_score\":17,\"match_reasons\":[\"title matches fullstack keyword\",\"score 17 in band\"]},{\"id\":\"job-08\",\"role_category\":\"react-native\",\"match_score\":80,\"match_reasons\":[\"title matches react-native keyword\"]},{\"id\":\"job-09\",\"role_category\":\"react\",\"match_score\":19,\"match_reasons\":[\"title matches react keyword\",\"score 19 in band\"]},{\"id\":\"job-10\",\"role_category\":\"frontend\",\"match_score\":82,\"match_reasons\":[\"title matches frontend keyword\"]},{\"id\":\"job-11\",\"role_category\":\"fullstack\",\"match_score\":21,\"match_reasons\":[\"title matches fullstack keyword\",\"score 21 in band\"]},{\"id\":\"job-12\",\"role_category\":\"react-native\",\"match_score\":84,\"match_reasons\":[\"title matches react-native keyword\"]},{\"id\":\"job-13\",\"role_category\":\"react\",\"match_score\":23,\"match_reasons\":[\"title matches react keyword\",\"score 23 in band\"]},{\"id\":\"job-14\",\"role_category\":\"frontend\",\"match_score\":86,\"match_reasons\":[\"title matches frontend keyword\"]},{\"id\":\"job-15\",\"role_category\":\"fullstack\",\"match_score\":25,\"match_reasons\":[\"title matches fullstack keyword\",\"score 25 in band\"]},{\"id\":\"job-16\",\"role_category\":\"react-native\",\"match_score\":88,\"match_reasons\":[\"title matches react-native keyword\"]},{\"id\":\"job-17\",\"role_category\":\"react\",\"match_score\":27,\"match_reasons\":[\"title matches react keyword\",\"score 27 in band\"]},{\"id\":\"job-18\",\"role_category\":\"frontend\",\"match_score\":90,\"match_reasons\":[\"title matches frontend keyword\"]},{\"id\":\"job-19\",\"role_category\":\"fullstack\",\"match_score\":29,\"match_reasons\":[\"title matches fullstack keyword\",\"score 29 in band\"]},{\"id\":\"job-20\",\"role_category\":\"react-native\",\"match_score\":72,\"match_reasons\":[\"title matches react-native keyword\"]}]"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 3521,
+    "output_tokens": 842
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "state": "representative",
+  "provenance": "Representative robots.txt that disallows /careers and /jobs paths. Used to test Scenario 8: robots.txt disallow blocks generic page fetch."
+}

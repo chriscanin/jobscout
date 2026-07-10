@@ -1,0 +1,4 @@
+{
+  "state": "representative",
+  "provenance": "Representative HTML for a company careers page that contains a jobs.lever.co link. Used to test Scenario 5: generic page with recognizable ATS link resolves to that ATS company (lever, slug 'exampleco')."
+}

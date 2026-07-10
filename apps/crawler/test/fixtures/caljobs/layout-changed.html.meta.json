@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Mechanical mutation of search-results-page1.html for C4 layout-change test. All selector-bearing CSS class names and element ids have been renamed with a 'V2' suffix: gridView→gridViewV2, gridViewRow→gridViewRowV2, jobTitle→jobTitleV2, jobTitleLink→jobTitleLinkV2, employer→employerV2, location→locationV2, postedDate→postedDateV2, jobOrderNum→jobOrderNumV2. The table id and panel id are similarly suffixed. The adapter's CSS selectors will not match, producing no parseable rows."
+}

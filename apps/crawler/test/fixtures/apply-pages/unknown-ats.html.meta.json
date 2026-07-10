@@ -1,0 +1,7 @@
+{
+  "state": "real-capture",
+  "source": "GET https://jobs.lever.co/spotify/66acb66f-de37-4d95-a353-874db92838ef/apply",
+  "capturedAt": "2026-07-09",
+  "mutation": "trimmed for repo size (deletion-only). The live page was 769651 bytes; the head boilerplate (meta tags, inline SVGs, analytics/script bundles) and post-form footer were removed. The <form id=\"application-form\"> block is verbatim from the live capture. jobs.lever.co is not a Greenhouse board and its host is not in HARD_ATS_DOMAINS, so rankDifficulty falls through to the LLM classifier for this page. The retained form is an apply-in-place form (name/email/resume upload + screening questions) with no account creation.",
+  "host": "jobs.lever.co"
+}

@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "state": "representative",
+    "provenance": "Representative fixture for Anthropic web_search tool results for query 'react native' with allowed_domains job-boards.greenhouse.io and boards.greenhouse.io. Shape matches the web_search tool result block content items returned by the Anthropic Messages API."
+  },
+  "results": [
+    {
+      "url": "https://job-boards.greenhouse.io/mattermost/jobs/5238290008",
+      "title": "Senior React Native Engineer at Mattermost"
+    },
+    {
+      "url": "https://job-boards.greenhouse.io/discord/jobs/7654321001",
+      "title": "Mobile Engineer (React Native) at Discord"
+    },
+    {
+      "url": "https://boards.greenhouse.io/acmeco",
+      "title": "Careers at Acme Co"
+    },
+    {
+      "url": "https://job-boards.greenhouse.io/plaid/jobs/1122334400",
+      "title": "React Native Engineer at Plaid"
+    }
+  ]
+}

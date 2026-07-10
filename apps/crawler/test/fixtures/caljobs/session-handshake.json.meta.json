@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Representative session handshake document for CalJobs. Documents the two-step flow: GET to get session cookie, then GET with Cookie header for search results. Real captures return HTTP 500 without a valid browser session."
+}

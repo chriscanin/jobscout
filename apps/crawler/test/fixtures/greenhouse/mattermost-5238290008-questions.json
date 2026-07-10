@@ -1,0 +1,131 @@
+{
+  "absolute_url": "https://job-boards.greenhouse.io/mattermost/jobs/5238290008",
+  "data_compliance": [
+    {
+      "type": "gdpr",
+      "requires_consent": false,
+      "requires_processing_consent": false,
+      "requires_retention_consent": false,
+      "retention_period": null,
+      "demographic_data_consent_applies": false
+    }
+  ],
+  "education": "education_optional",
+  "internal_job_id": 4483414008,
+  "location": {
+    "name": "United States"
+  },
+  "metadata": null,
+  "id": 5238290008,
+  "updated_at": "2026-06-23T11:13:36-04:00",
+  "requisition_id": "TBH-FY27-RD4",
+  "title": "Senior React Native Engineer ",
+  "company_name": "Mattermost",
+  "first_published": "2026-06-01T17:58:23-04:00",
+  "language": "en",
+  "application_deadline": null,
+  "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;div&gt;Mattermost is the leading collaborative workflow platform for defense, intelligence, security, and critical infrastructure. Trusted by the U.S. Department of War and Fortune 500s, our platform runs on-premises and in private clouds, delivering secure messaging, file sharing, workflow automation, audio/screenshare, and project management—all with full data and operational control. Mattermost powers high-stakes workflows across mission planning, real-time, real-world operations, DevSecOps, incident response, and cyber defense—enabling secure collaboration from tactical edge and DDIL environments to enterprise HQ. Teams operate across web, desktop, and mobile, with embedded interoperability for Microsoft Teams, Outlook, and Microsoft 365.&lt;br&gt;&lt;br&gt;&lt;/div&gt;\n&lt;div&gt;To learn more, visit&amp;nbsp;&lt;a href=&quot;http://www.mattermost.com/&quot;&gt;www.mattermost.com&lt;/a&gt;&lt;/div&gt;&lt;/div&gt;&lt;p&gt;We are seeking a &lt;strong&gt;Senior React Native Engineer&lt;/strong&gt; to take ownership of the Mattermost mobile experience for teams working in defense, intelligence, and critical infrastructure. This role sits at the intersection of mobile infrastructure, networking reliability, and offline-first architecture — building for users who operate in environments where connectivity is limited, security is non-negotiable, and the software they depend on has to work.&lt;/p&gt;\n&lt;p&gt;You&#39;ll partner closely with backend and platform teams, shape how we approach mobile at a systems level, and help raise the bar for how we build and test across iOS and Android.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Responsibilities&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Architect and evolve the React Native application for deployment environments with limited or unreliable connectivity&lt;/li&gt;\n&lt;li&gt;Define how the app handles WebSocket reliability and data synchronization across degraded network conditions&lt;/li&gt;\n&lt;li&gt;Design offline-first storage and sync patterns, including conflict resolution strategies&lt;/li&gt;\n&lt;li&gt;Shape mobile development tooling, code organization, and testing infrastructure&lt;/li&gt;\n&lt;li&gt;Drive performance improvements across network efficiency, package size, and memory consumption&lt;/li&gt;\n&lt;li&gt;Own testing strategy for mobile platform-specific challenges&lt;/li&gt;\n&lt;li&gt;Mentor engineers on mobile architecture and best practices&lt;/li&gt;\n&lt;li&gt;Uphold security and compliance standards required by government and enterprise clients&lt;/li&gt;\n&lt;li&gt;Contribute to the open-source codebase&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&lt;strong&gt;What We&#39;re Looking For&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;We care about what you&#39;ve built and the problems you&#39;ve solved — not how long you&#39;ve been building. If you have strong outcomes to speak to in mobile engineering, we want to hear from you.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Required&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Demonstrated experience with React Native and JavaScript/TypeScript — you can speak to real tradeoffs you&#39;ve navigated&lt;/li&gt;\n&lt;li&gt;Strong understanding of networking fundamentals: HTTP, WebSockets, connection lifecycle, and how to build resilient apps over unreliable networks&lt;/li&gt;\n&lt;li&gt;Experience with offline-first design — local persistence, sync strategies, and conflict resolution&lt;/li&gt;\n&lt;li&gt;Familiarity with native iOS and/or Android development&lt;/li&gt;\n&lt;li&gt;AI fluency and a track record of adapting to new tooling as the landscape evolves&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&lt;strong&gt;Preferred&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Experience with reactive programming patterns (e.g. RxJS) or mobile database solutions (e.g. WatermelonDB)&lt;/li&gt;\n&lt;li&gt;Familiarity with the Expo framework, including migration from bare React Native&lt;/li&gt;\n&lt;li&gt;Mobile security best practices in enterprise or regulated environments&lt;/li&gt;\n&lt;li&gt;Background in defense, intelligence, or critical infrastructure products&lt;/li&gt;\n&lt;li&gt;Experience improving mobile developer tooling or testing infrastructure&lt;/li&gt;\n&lt;li&gt;Open-source contributions&lt;/li&gt;\n&lt;li&gt;Experience in distributed or remote-first engineering teams&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&lt;strong&gt;Compensation&amp;nbsp;&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Salary range:&lt;/strong&gt; $165,000 – $225,000&lt;strong&gt;&lt;br&gt;&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;Mattermost takes a market-based approach to pay. Compensation is determined based on skills, experience, qualifications, and work location. Ranges may be updated as market conditions evolve.&lt;br&gt;&lt;br&gt;&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;U.S. Eligibility &amp;amp; Compliance&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;This role may require obtaining and maintaining a U.S. government security clearance. Candidates must meet federal eligibility requirements to be considered. For more information visit&lt;a href=&quot;https://www.state.gov/securityclearances&quot;&gt; Security Clearances — United States Department of State&lt;/a&gt;&lt;/p&gt;\n&lt;p&gt;Applicants must meet eligibility requirements for access to export-controlled information as defined by U.S. export control laws, including EAR and ITAR. For more information visit the&lt;a href=&quot;https://www.bis.doc.gov&quot;&gt; Bureau of Industry and Security&lt;/a&gt; and the&lt;a href=&quot;https://www.pmddtc.state.gov&quot;&gt; Directorate of Defense Trade Controls&lt;/a&gt;.&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;div&gt;Mattermost is an EEO Employer, we are a remote-first, open-source company.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;div&gt;We are continually working to expand our hiring in more countries and regions, ensuring compliance with local laws and regulations, which takes time.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;div&gt;Mattermost values your unique perspective—we welcome all applicants. We encourage individuals from all backgrounds to apply and are committed to assessing candidates based on their skills and qualifications. We do not tolerate discrimination against staff or applicants based on race, religion, national origin, age, disability, pregnancy status, veteran status, or other personal characteristics.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;div&gt;If you require accommodations during the interview process, please let us know—we’re happy to assist.&lt;/div&gt;&lt;/div&gt;",
+  "departments": [
+    {
+      "id": 4053102008,
+      "name": "Engineering",
+      "child_ids": [],
+      "parent_id": null
+    }
+  ],
+  "offices": [
+    {
+      "id": 4044261008,
+      "name": "United States",
+      "location": "United States",
+      "child_ids": [
+        4065569008,
+        4065676008,
+        4065677008,
+        4065678008,
+        4065367008
+      ],
+      "parent_id": null
+    }
+  ],
+  "ai_disclaimer": "<p>We use Greenhouse’s AI-powered Talent Matching tool to compare your application against our job requirements.</p>",
+  "include_ai_disclaimer": true,
+  "ai_opt_out_request_url": "http://app8.greenhouse.io/ai_opt_out_request/job_post/5238290008/ai_opt_out",
+  "compliance": null,
+  "demographic_questions": null,
+  "questions": [
+    {
+      "description": null,
+      "label": "First Name",
+      "required": true,
+      "fields": [
+        {
+          "name": "first_name",
+          "type": "input_text",
+          "values": []
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Last Name",
+      "required": true,
+      "fields": [
+        {
+          "name": "last_name",
+          "type": "input_text",
+          "values": []
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Email",
+      "required": true,
+      "fields": [
+        {
+          "name": "email",
+          "type": "input_text",
+          "values": []
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Phone",
+      "required": true,
+      "fields": [
+        {
+          "name": "phone",
+          "type": "input_text",
+          "values": []
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Resume/CV",
+      "required": true,
+      "fields": [
+        {
+          "name": "resume",
+          "type": "input_file",
+          "values": []
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Cover Letter",
+      "required": false,
+      "fields": [
+        {
+          "name": "cover_letter",
+          "type": "input_file",
+          "values": []
+        }
+      ]
+    }
+  ],
+  "location_questions": []
+}

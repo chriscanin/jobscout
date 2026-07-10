@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "provenance": "Representative fixture for GET https://api.ashbyhq.com/posting-api/job-board/{org}. The real Ashby posting API is public/unauthenticated. Shape matches the actual Ashby job board API response envelope with success + data.organization. Org slug: 'linear'.",
+  "source_url": "https://api.ashbyhq.com/posting-api/job-board/linear"
+}

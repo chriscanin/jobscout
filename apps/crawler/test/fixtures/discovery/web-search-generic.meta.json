@@ -1,0 +1,4 @@
+{
+  "state": "representative",
+  "provenance": "Representative fixture for Anthropic web_search tool results for generic job search queries. The Anthropic web_search tool requires ANTHROPIC_API_KEY and live network; neither available here. Shape matches parsed web_search tool_result content blocks."
+}

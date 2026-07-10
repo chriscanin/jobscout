@@ -1,0 +1,7 @@
+{
+  "state": "representative",
+  "capturedAt": "2026-07-09",
+  "reason": "ANTHROPIC_API_KEY not set in this environment; no live claude-haiku-4-5/claude-sonnet-4-6 call was made. Envelope matches the real Messages API response shape (MessageResponse in apps/crawler/src/anthropic.ts).",
+  "model": "claude-sonnet-4-6",
+  "pinned": "sonnet re-score of job A pinned to 78; sonnet output is final regardless of value."
+}

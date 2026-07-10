@@ -1,0 +1,40 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Representative CalJobs session-cookie handshake. Real CalJobs returns HTTP 500 on direct URL without ASP.NET session state. This fixture documents the expected handshake flow: initial GET to establish session returns Set-Cookie, subsequent POST with VIEWSTATE and session cookie returns search results.",
+  "steps": [
+    {
+      "step": 1,
+      "description": "Initial GET to establish session",
+      "request": {
+        "method": "GET",
+        "url": "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Set-Cookie": "ASP.NET_SessionId=abc123xyz789session; path=/; HttpOnly",
+          "Content-Type": "text/html; charset=utf-8"
+        },
+        "body_fixture": "Contains __VIEWSTATE and __EVENTVALIDATION hidden inputs"
+      }
+    },
+    {
+      "step": 2,
+      "description": "Search POST with session cookie and form state",
+      "request": {
+        "method": "GET",
+        "url": "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?pg=1&q=react+developer",
+        "headers": {
+          "Cookie": "ASP.NET_SessionId=abc123xyz789session"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body_fixture": "search-results-page1.html"
+      }
+    }
+  ],
+  "sessionCookieName": "ASP.NET_SessionId",
+  "sessionCookieValue": "abc123xyz789session"
+}

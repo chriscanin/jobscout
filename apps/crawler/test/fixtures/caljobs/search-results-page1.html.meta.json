@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Representative CalJobs search-results page. Real captures return HTTP 500 (server-side ASP.NET error on direct URL without session state). This fixture reflects the Geographic Solutions portal DOM structure used by CalJobs. Job order numbers follow the CA-XXXXXXXX pattern. Detail links use /vosnet/jobbanks/jobdetails.aspx?enc=...&jbid=CA-XXXXXXXX. The jbid param contains the stable job order number used as external_id."
+}

@@ -1,0 +1,16 @@
+{
+  "id": "msg_jxpoxu0b95p",
+  "model": "claude-sonnet-4-6",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "[{\"id\":\"job-A\",\"role_category\":\"react\",\"match_score\":78,\"match_reasons\":[\"on reflection a strong react match\",\"frontend adjacent\"]}]"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 520,
+    "output_tokens": 90
+  }
+}

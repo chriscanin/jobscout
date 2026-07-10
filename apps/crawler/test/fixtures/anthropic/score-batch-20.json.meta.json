@@ -1,0 +1,7 @@
+{
+  "state": "representative",
+  "capturedAt": "2026-07-09",
+  "reason": "ANTHROPIC_API_KEY not set in this environment; no live claude-haiku-4-5/claude-sonnet-4-6 call was made. Envelope matches the real Messages API response shape (MessageResponse in apps/crawler/src/anthropic.ts).",
+  "model": "claude-haiku-4-5",
+  "pinned": "All 20 match_score values are outside the 40-70 re-score band so no sonnet pass fires. Placeholder ids job-01..job-20 are remapped to the test-created job UUIDs by the test."
+}

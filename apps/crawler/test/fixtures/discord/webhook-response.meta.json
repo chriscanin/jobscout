@@ -1,0 +1,4 @@
+{
+  "state": "representative",
+  "provenance": "Discord incoming webhook documentation: a successful POST to a webhook with embeds returns HTTP 204 No Content with an empty body. DISCORD_WEBHOOK_URL is not configured in this environment, so this fixture is synthesized from the documented response shape rather than captured from a live call. See https://discord.com/developers/docs/resources/webhook#execute-webhook."
+}

@@ -1,0 +1,6 @@
+{
+  "state": "representative",
+  "provenance": "Representative fixture for Anthropic web_search tool results. The Anthropic web_search tool requires ANTHROPIC_API_KEY and live network access; neither is available in this environment. Shape matches the result structure parsed from web_search tool_result content blocks returned by the Anthropic Messages API.",
+  "query": "react native",
+  "allowed_domains": ["job-boards.greenhouse.io", "boards.greenhouse.io"]
+}

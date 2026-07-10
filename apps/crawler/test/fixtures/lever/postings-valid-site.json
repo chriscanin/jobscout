@@ -1,0 +1,19 @@
+[
+  {
+    "id": "9c9e1cf5-1234-5678-abcd-000000000001",
+    "text": "React Native Engineer",
+    "categories": {
+      "commitment": "Full-time",
+      "department": "Engineering",
+      "location": "Remote",
+      "team": "Mobile"
+    },
+    "description": "<p>We are looking for a React Native Engineer to join our mobile team.</p>",
+    "lists": [],
+    "additional": "",
+    "hostedUrl": "https://jobs.lever.co/exampleco/9c9e1cf5-1234-5678-abcd-000000000001",
+    "applyUrl": "https://jobs.lever.co/exampleco/9c9e1cf5-1234-5678-abcd-000000000001/apply",
+    "createdAt": 1700000000000,
+    "updatedAt": 1700100000000
+  }
+]

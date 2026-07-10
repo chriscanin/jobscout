@@ -1,0 +1,7 @@
+{
+  "state": "real-capture",
+  "source": "GET https://boards-api.greenhouse.io/v1/boards/mattermost/jobs/5238290008?questions=true",
+  "capturedAt": "2026-07-09",
+  "mutation": "none — verbatim copy of the live Mattermost capture (identical bytes to greenhouse/job-5238290008-questions.json). This posting includes multiple questions whose field names fall outside STANDARD_GREENHOUSE_QUESTIONS (GitHub profile, 'Why are you interested', visa/sponsorship, U.S. security-clearance status, export-control eligibility, legal name), so the deterministic Greenhouse rule classifies it MEDIUM. The first non-standard field encountered is the LinkedIn/GitHub link field named question_16200833008.",
+  "result": "medium (>= 1 question field name beyond STANDARD_GREENHOUSE_QUESTIONS)"
+}

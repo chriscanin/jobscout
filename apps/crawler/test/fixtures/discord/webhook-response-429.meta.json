@@ -1,0 +1,4 @@
+{
+  "state": "representative",
+  "provenance": "Discord rate-limit response synthesized from documented shape. Discord's documented 429 body is {message, retry_after, global}. Deliberately manufacturing a real 429 by hammering the API is not warranted for a single-user tool. See https://discord.com/developers/docs/topics/rate-limits. The only field the notifier reads is retry_after (converted from seconds to milliseconds for the sleep call)."
+}

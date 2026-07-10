@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Mechanical mutation of search-results-page1.html for the C3 pagination-cap test. Mutations: job order numbers changed to CA-20240006 and CA-20240007; pagination block changed from 'Page 1 of 2' to 'Page 3 of 5' and Next link points to pg=4. The adapter must stop after fetching this page (page 3 = the cap) and must NOT request pg=4."
+}

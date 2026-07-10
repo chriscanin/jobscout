@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Job Search Results - CalJobs - Page 3</title>
+</head>
+<body>
+  <!-- Mechanical mutation of search-results-page1.html:
+       - job order numbers changed to CA-20240006 and CA-20240007
+       - pagination block altered to advertise 5 pages (was 2), and show a Next link for page 4
+  -->
+  <form id="aspnetForm" method="post" action="/vosnet/jobbanks/jobsearch.aspx">
+    <input type="hidden" name="__VIEWSTATE" value="dDwxMjM0NTY3ODk7Oz4=" />
+    <input type="hidden" name="__EVENTVALIDATION" value="dDwxMjM0NTY3ODk7Oz4=" />
+  </form>
+
+  <div id="ctl00_ContentPlaceHolder1_pnlResults">
+    <table class="gridView" id="ctl00_ContentPlaceHolder1_gvwJobBankResults">
+      <thead>
+        <tr>
+          <th>Job Title</th>
+          <th>Employer</th>
+          <th>Location</th>
+          <th>Posted</th>
+          <th>Job Order #</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="gridViewRow">
+          <td class="jobTitle">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=pqr&amp;jbid=CA-20240006" class="jobTitleLink">
+              Mobile App Developer
+            </a>
+          </td>
+          <td class="employer">State of California</td>
+          <td class="location">Sacramento, CA</td>
+          <td class="postedDate">07/06/2026</td>
+          <td class="jobOrderNum">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=pqr&amp;jbid=CA-20240006">CA-20240006</a>
+          </td>
+        </tr>
+        <tr class="gridViewRow">
+          <td class="jobTitle">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=stu&amp;jbid=CA-20240007" class="jobTitleLink">
+              JavaScript Engineer
+            </a>
+          </td>
+          <td class="employer">CalTech Ventures</td>
+          <td class="location">Fresno, CA</td>
+          <td class="postedDate">07/07/2026</td>
+          <td class="jobOrderNum">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=stu&amp;jbid=CA-20240007">CA-20240007</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination advertises 5 pages; adapter must stop here and not fetch page 4 -->
+    <div class="pagination" id="ctl00_ContentPlaceHolder1_pnlPager">
+      <span class="pageCount">Page 3 of 5</span>
+      <a href="/vosnet/jobbanks/jobsearch.aspx?pg=2" class="pageLink">Prev</a>
+      <a href="/vosnet/jobbanks/jobsearch.aspx?pg=4" class="pageLink">Next</a>
+    </div>
+  </div>
+</body>
+</html>

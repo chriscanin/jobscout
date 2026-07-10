@@ -1,0 +1,8 @@
+{
+  "state": "blocked-capture",
+  "attempted_url": "https://api.lever.co/v0/postings/netlify?mode=json",
+  "note": "Lever's v0 public postings API returned {\"ok\":false,\"error\":\"Document not found\"} for every board slug tested (netlify, vercel, linear, stripe, figma, notion, asana, segment, hinge, doordash, reddit, coinbase, carta, scale-ai, benchling, coda, retool, mixpanel, amplitude, waymo, anduril, shipbob, lattice, ironclad, ramp, gofundme, gusto, zendesk, twilio, klaviyo, brex) on 2026-07-09. The lever.co board itself returns HTTP 200 with an empty array []. The API is live but all known public board tokens are inactive. This fixture is a representative payload constructed from the official Lever API field documentation and the field mapping table in spec 02-adapters-api-boards.atdd.md. It uses the board_token 'exampleco'.",
+  "captured_at": "2026-07-09",
+  "format": "array of Lever posting objects (mode=json response)",
+  "fields_documented_from": "https://hire.lever.co/developer/documentation#postings"
+}

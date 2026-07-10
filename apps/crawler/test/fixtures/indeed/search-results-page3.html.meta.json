@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Mechanical mutation of search-results-page1.html: all jk ids replaced with distinct page-3 values (5555eeee6666ffff, 7777aaaa8888bbbb), pagination Next link points to start=30 (advertising more pages). Used for I4 pagination cap test — adapter must stop after page 3 and not fetch start=30."
+}

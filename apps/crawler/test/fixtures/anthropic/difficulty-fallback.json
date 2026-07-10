@@ -1,0 +1,16 @@
+{
+  "id": "msg_l4x015cq3j",
+  "model": "claude-haiku-4-5",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"difficulty\":\"easy\",\"difficulty_reasons\":[\"apply-in-place lever form\",\"resume upload and standard contact fields only\",\"no account creation required\"]}"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 2210,
+    "output_tokens": 64
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "state": "representative",
+    "provenance": "Representative fixture for Anthropic web_search tool results for a generic query like 'react native jobs remote careers'. Contains a non-ATS careers page URL to exercise the generic-page branch."
+  },
+  "results": [
+    {
+      "url": "https://careers.example-startup.com/jobs",
+      "title": "Jobs at Example Startup"
+    },
+    {
+      "url": "https://www.somecompany.io/careers",
+      "title": "Careers - SomeCompany"
+    },
+    {
+      "url": "https://ghosttown-careers.example.com/join-us",
+      "title": "Join the Ghost Town Team"
+    }
+  ]
+}

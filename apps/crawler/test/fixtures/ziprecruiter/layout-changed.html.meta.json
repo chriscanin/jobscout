@@ -1,0 +1,5 @@
+{
+  "state": "representative",
+  "captureDate": "2026-07-09",
+  "notes": "Mechanical mutation of search-results-page1.html for Z3 layout-change test. Mutations applied: class 'job_results' → 'job_listings_v2'; class 'job_result_two_pane' → 'listing_card_v2'; class 'job_link' → 'listing_url_v2'; h2 class 'job_title' → 'listing_title_v2'; anchor class 't_org_link name' → 'org_name_v2'. These mutations make the adapter's CSS selectors miss, producing no parseable rows."
+}

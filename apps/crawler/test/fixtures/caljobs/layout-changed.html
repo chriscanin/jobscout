@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Job Search Results - CalJobs</title>
+</head>
+<body>
+  <!-- Mechanical mutation of search-results-page1.html:
+       All selector-bearing class names and ids renamed to break parsing.
+       Mutations applied:
+         id "ctl00_ContentPlaceHolder1_pnlResults" → "ctl00_ContentPlaceHolder1_pnlResultsV2"
+         class "gridView" → "gridViewV2"
+         id "ctl00_ContentPlaceHolder1_gvwJobBankResults" → "ctl00_ContentPlaceHolder1_gvwJobBankResultsV2"
+         class "gridViewRow" → "gridViewRowV2"
+         class "jobTitle" → "jobTitleV2"
+         class "jobTitleLink" → "jobTitleLinkV2"
+         class "employer" → "employerV2"
+         class "location" → "locationV2"
+         class "postedDate" → "postedDateV2"
+         class "jobOrderNum" → "jobOrderNumV2"
+  -->
+  <form id="aspnetForm" method="post" action="/vosnet/jobbanks/jobsearch.aspx">
+    <input type="hidden" name="__VIEWSTATE" value="dDwxMjM0NTY3ODk7Oz4=" />
+    <input type="hidden" name="__EVENTVALIDATION" value="dDwxMjM0NTY3ODk7Oz4=" />
+  </form>
+
+  <div id="ctl00_ContentPlaceHolder1_pnlResultsV2">
+    <table class="gridViewV2" id="ctl00_ContentPlaceHolder1_gvwJobBankResultsV2">
+      <thead>
+        <tr>
+          <th>Job Title</th>
+          <th>Employer</th>
+          <th>Location</th>
+          <th>Posted</th>
+          <th>Job Order #</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="gridViewRowV2">
+          <td class="jobTitleV2">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=abc&amp;jbid=CA-20240001" class="jobTitleLinkV2">
+              Senior React Native Developer
+            </a>
+          </td>
+          <td class="employerV2">Acme State Agency</td>
+          <td class="locationV2">Sacramento, CA</td>
+          <td class="postedDateV2">07/01/2026</td>
+          <td class="jobOrderNumV2">
+            <a href="/vosnet/jobbanks/jobdetails.aspx?enc=abc&amp;jbid=CA-20240001">CA-20240001</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

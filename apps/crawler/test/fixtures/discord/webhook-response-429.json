@@ -1,0 +1,13 @@
+{
+  "status": 429,
+  "headers": {
+    "content-type": "application/json",
+    "retry-after": "1.3",
+    "x-ratelimit-global": "false"
+  },
+  "body": {
+    "message": "You are being rate limited.",
+    "retry_after": 1.3,
+    "global": false
+  }
+}

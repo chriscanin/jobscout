@@ -1,0 +1,7 @@
+{
+  "state": "blocked-capture",
+  "captureUrl": "https://www.ziprecruiter.com/jobs-search?search=react+developer&location=Remote",
+  "captureDate": "2026-07-09",
+  "httpStatus": 403,
+  "notes": "Cloudflare challenge page. Title is 'Just a moment...'. Contains 'cf-chl', 'Just a moment'. Saved as blocked-429.html per spec (serves as body for 429 status tests). Actual HTTP status on capture was 403; spec requests this fixture serve under 429 status in tests."
+}

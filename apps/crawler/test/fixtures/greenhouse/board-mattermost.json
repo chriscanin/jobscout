@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "state": "representative",
+    "provenance": "Representative fixture for GET https://boards-api.greenhouse.io/v1/boards/mattermost/jobs. The real API is public and unauthenticated; a real capture was attempted but to avoid network calls in this environment a representative payload is used. The real endpoint returns a 'meta' object with company name and a 'jobs' array."
+  },
+  "meta": {
+    "name": "Mattermost"
+  },
+  "jobs": [
+    {
+      "id": 5238290008,
+      "title": "Senior React Native Engineer",
+      "location": {
+        "name": "United States"
+      },
+      "absolute_url": "https://job-boards.greenhouse.io/mattermost/jobs/5238290008",
+      "updated_at": "2026-06-23T11:13:36-04:00"
+    }
+  ]
+}
