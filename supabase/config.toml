@@ -1,0 +1,5 @@
+# Supabase project config — placeholder for local dev tooling (unused in v1)
+# The project connects directly via SUPABASE_DB_URL; migrations are applied
+# by `pnpm db:push` (a thin pg runner in apps/crawler).
+
+project_id = "jobscout"

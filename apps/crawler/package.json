@@ -1,0 +1,29 @@
+{
+  "name": "@jobscout/crawler",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "crawl": "tsx src/cli.ts crawl",
+    "loop": "tsx src/cli.ts loop",
+    "discover": "tsx src/cli.ts discover",
+    "doctor": "tsx src/cli.ts doctor",
+    "db:push": "tsx src/db-push.ts",
+    "e2e": "vitest run test/e2e"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
+    "@jobscout/core": "workspace:*",
+    "cheerio": "^1.0.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
