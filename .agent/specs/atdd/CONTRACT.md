@@ -149,7 +149,7 @@ interface SourceAdapter {
 
 ## Crawl pipeline (fixed order)
 
-load criteria → sync seed companies file into `companies` → run adapters (each isolated; one failing must not kill the run) → normalize + upsert (`(source, external_id)` conflict updates `last_seen_at` + mutable fields, resets `missing_streak`) → increment `missing_streak` for jobs a source no longer lists → classify unclassified jobs (match score, then difficulty) → expire (`missing_streak >= 2` and status new/notified) → notify → record `crawl_runs` row. Single-flight enforced with a Postgres advisory lock (portable across machines).
+load criteria → sync the seed companies file (`apps/crawler/seeds/companies.seed.json`) into `companies` → run adapters (each isolated; one failing must not kill the run) → normalize + upsert (`(source, external_id)` conflict updates `last_seen_at` + mutable fields, resets `missing_streak`) → increment `missing_streak` for jobs a source no longer lists → classify unclassified jobs (match score, then difficulty) → expire (`missing_streak >= 2` and status new/notified) → notify → record `crawl_runs` row. Single-flight enforced with a Postgres advisory lock (portable across machines).
 
 ## Politeness / scraping rules (personal-use scale)
 

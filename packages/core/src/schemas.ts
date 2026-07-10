@@ -86,6 +86,29 @@ export const RawJob = z.object({
 });
 export type RawJob = z.infer<typeof RawJob>;
 
+/**
+ * A seed-companies file entry (spec 01 §2). The crawler reads a parsed array of
+ * these and hands it to `syncSeedCompanies`; core stays fs-free.
+ */
+export const SeedCompany = z.object({
+  name: z.string(),
+  ats: Ats,
+  boardToken: z.string().optional(),
+  careersUrl: z.string().optional(),
+});
+export type SeedCompany = z.infer<typeof SeedCompany>;
+
+/** The seed-companies file: an array of `SeedCompany`. */
+export const SeedCompanies = z.array(SeedCompany);
+
+/**
+ * Validate an already-parsed seed-companies payload (core stays fs-free — the
+ * crawler reads/parses the JSON file and passes the value in).
+ */
+export function parseSeedCompanies(json: unknown): SeedCompany[] {
+  return SeedCompanies.parse(json);
+}
+
 /** One entry of `criteria.value.role_priorities`. */
 export const RolePriority = z.object({
   category: RoleCategory,

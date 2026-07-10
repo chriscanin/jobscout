@@ -24,9 +24,49 @@ export function createPgDb(connectionString: string): Db {
 }
 
 /**
- * Apply every `.sql` file in `dir` to `db` in filename order. In wave 0 there
- * are zero migration files, so this applies nothing. Missing directory is
- * treated as "no migrations".
+ * Split a SQL script into individual statements. PGlite's `query` (unlike node
+ * `pg`) rejects multiple commands in one call, so migrations are executed
+ * statement-by-statement. This is a lightweight splitter that respects single
+ * quotes and `--` line comments — sufficient for our hand-written migrations.
+ */
+export function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = "";
+  let inSingleQuote = false;
+  let inLineComment = false;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    const next = sql[i + 1];
+    if (inLineComment) {
+      current += ch;
+      if (ch === "\n") inLineComment = false;
+      continue;
+    }
+    if (!inSingleQuote && ch === "-" && next === "-") {
+      inLineComment = true;
+      current += ch;
+      continue;
+    }
+    if (ch === "'") {
+      inSingleQuote = !inSingleQuote;
+      current += ch;
+      continue;
+    }
+    if (ch === ";" && !inSingleQuote) {
+      if (current.trim().length > 0) statements.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim().length > 0) statements.push(current.trim());
+  return statements;
+}
+
+/**
+ * Apply every `.sql` file in `dir` to `db` in filename order, executing each
+ * file statement-by-statement (PGlite rejects multi-command queries). Missing
+ * directory is treated as "no migrations".
  */
 export async function applyMigrations(db: Db, dir: string): Promise<void> {
   let entries: string[];
@@ -39,8 +79,9 @@ export async function applyMigrations(db: Db, dir: string): Promise<void> {
   const files = entries.filter((f) => f.endsWith(".sql")).sort();
   for (const file of files) {
     const sql = await readFile(path.join(dir, file), "utf8");
-    if (sql.trim().length === 0) continue;
-    await db.query(sql);
+    for (const statement of splitSqlStatements(sql)) {
+      await db.query(statement);
+    }
   }
 }
 

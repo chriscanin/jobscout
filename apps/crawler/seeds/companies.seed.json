@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Mattermost",
+    "ats": "greenhouse",
+    "boardToken": "mattermost",
+    "careersUrl": "https://mattermost.com/careers/"
+  },
+  {
+    "name": "Airbyte",
+    "ats": "greenhouse",
+    "boardToken": "airbyte",
+    "careersUrl": "https://airbyte.com/careers"
+  },
+  {
+    "name": "Netlify",
+    "ats": "lever",
+    "boardToken": "netlify",
+    "careersUrl": "https://www.netlify.com/careers/"
+  },
+  {
+    "name": "Ramp",
+    "ats": "ashby",
+    "boardToken": "ramp",
+    "careersUrl": "https://ramp.com/careers"
+  }
+]
