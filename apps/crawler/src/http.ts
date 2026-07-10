@@ -68,7 +68,9 @@ export function createHttpClient(opts: HttpClientOptions = {}): HttpClient {
     transport = (url, init) => globalThis.fetch(url, init),
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     now = () => Date.now(),
-    minSpacingMs = 2000,
+    // Per-host politeness spacing. Env-tunable (HTTP_MIN_SPACING_MS) so a
+    // personal run over public board APIs can go faster than the safe default.
+    minSpacingMs = Number(process.env.HTTP_MIN_SPACING_MS) || 2000,
     maxRetries = 3,
     userAgent = DEFAULT_USER_AGENT,
   } = opts;
