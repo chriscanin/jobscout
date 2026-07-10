@@ -1,12 +1,17 @@
 /**
  * Classifier tests (spec 05 §3, scenarios S1–S8).
  *
- * Discipline: NO network. Every test injects a mocked Anthropic client and a
- * mocked `fetchHtml`. The deterministic paths assert ZERO client/fetch calls.
- * Fixtures are real captures where the source is a public unauthenticated API
- * (Greenhouse), and honestly-marked representative responses where the source
- * needs a key we do not have (Anthropic). Node 22 global `Response` is used to
- * build fake HTTP responses; here we only need the mocks below.
+ * Discipline: NO network. Every test injects a mocked LLM client and a mocked
+ * `fetchHtml`. The deterministic paths assert ZERO client/fetch calls. Fixtures
+ * are real captures where the source is a public unauthenticated API
+ * (Greenhouse), and honestly-marked representative responses for the LLM. Node
+ * 22 global `Response` is used to build fake HTTP responses; here we only need
+ * the mocks below.
+ *
+ * The classifier now depends on the provider-neutral `LlmClient.complete(req)`,
+ * which returns the assistant message TEXT. The captured fixtures are stored in
+ * the old Anthropic `MessageResponse` envelope, so the helpers extract the
+ * `content[].text` string and hand it to the mock as the completion text.
  */
 
 import { readFile } from "node:fs/promises";
@@ -31,49 +36,56 @@ import {
   scoreMatch,
   type ClassifierDeps,
 } from "../src/classifier.js";
-import type { MessageCreateParams, MessageResponse } from "../src/anthropic.js";
+import type { LlmRequest } from "../src/llm.js";
+
+/** The old captured-fixture envelope (LLM responses are stored in this shape). */
+interface FixtureEnvelope {
+  content: Array<{ type: string; text?: string }>;
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIX = path.join(HERE, "fixtures");
 
-async function loadFixture(rel: string): Promise<MessageResponse> {
+async function loadFixture(rel: string): Promise<FixtureEnvelope> {
   const raw = await readFile(path.join(FIX, rel), "utf8");
-  return JSON.parse(raw) as MessageResponse;
+  return JSON.parse(raw) as FixtureEnvelope;
 }
 
 async function loadText(rel: string): Promise<string> {
   return readFile(path.join(FIX, rel), "utf8");
 }
 
-/** A capturing mock Anthropic client that returns queued responses in order. */
-type MockAnthropic = ClassifierDeps["anthropic"] & {
-  calls: MessageCreateParams[];
-};
+/** Concatenate the text blocks of a captured fixture envelope. */
+function envelopeText(res: FixtureEnvelope): string {
+  return res.content
+    .filter((b) => b.type === "text" && typeof b.text === "string")
+    .map((b) => b.text as string)
+    .join("");
+}
+
+/** A capturing mock LlmClient whose `complete` returns queued text in order. */
+type MockLlm = ClassifierDeps["llm"] & { calls: LlmRequest[] };
 
 /**
- * Build a mock Anthropic client. `handler(params, callIndex)` returns the
- * response (or throws / rejects) for each call; `calls` records every request.
+ * Build a mock LlmClient. `handler(req, callIndex)` returns the completion TEXT
+ * (or throws / rejects) for each call; `calls` records every request.
  */
-function mockAnthropic(
-  handler: (
-    params: MessageCreateParams,
-    callIndex: number,
-  ) => Promise<MessageResponse> | MessageResponse,
-): MockAnthropic {
-  const calls: MessageCreateParams[] = [];
+function mockLlm(
+  handler: (req: LlmRequest, callIndex: number) => Promise<string> | string,
+): MockLlm {
+  const calls: LlmRequest[] = [];
   return {
     calls,
-    messages: {
-      async create(params: MessageCreateParams): Promise<MessageResponse> {
-        const idx = calls.length;
-        calls.push(params);
-        return handler(params, idx);
-      },
+    label: "mock:llm",
+    async complete(req: LlmRequest): Promise<string> {
+      const idx = calls.length;
+      calls.push(req);
+      return handler(req, idx);
     },
   };
 }
 
-/** A rejected Anthropic call shaped like a 529 overloaded_error. */
+/** A rejected LLM call shaped like a 529 overloaded_error. */
 function overloadedError(): Error {
   const err = new Error("overloaded_error: the API is temporarily overloaded");
   (err as Error & { status?: number }).status = 529;
@@ -81,20 +93,16 @@ function overloadedError(): Error {
   return err;
 }
 
-/** Remap fixture placeholder ids (job-01…) onto real job ids by position. */
-function remapScores(
-  res: MessageResponse,
-  realIds: string[],
-): MessageResponse {
-  const text = res.content.map((b) => b.text ?? "").join("");
-  const arr = JSON.parse(text) as Array<{ id: string }>;
+/**
+ * Remap fixture placeholder ids (job-01…) onto real job ids by position, and
+ * return the completion TEXT (a JSON array string) the mock LLM should emit.
+ */
+function remapScores(res: FixtureEnvelope, realIds: string[]): string {
+  const arr = JSON.parse(envelopeText(res)) as Array<{ id: string }>;
   arr.forEach((row, i) => {
     if (i < realIds.length) row.id = realIds[i];
   });
-  return {
-    ...res,
-    content: [{ type: "text", text: JSON.stringify(arr) }],
-  };
+  return JSON.stringify(arr);
 }
 
 /** Build a minimal in-memory Job row (defaults: unclassified, new). */
@@ -135,16 +143,15 @@ function makeJob(overrides: Partial<Job>): Job {
   };
 }
 
-/** A deps object whose anthropic never resolves (asserts 0-call paths). */
+/** A deps object whose llm never resolves (asserts 0-call paths). */
 function neverCalledDeps(): ClassifierDeps & { fetchCalls: string[] } {
   const fetchCalls: string[] = [];
   return {
     fetchCalls,
-    anthropic: {
-      messages: {
-        async create(): Promise<MessageResponse> {
-          throw new Error("anthropic.messages.create must not be called");
-        },
+    llm: {
+      label: "mock:never",
+      async complete(): Promise<string> {
+        throw new Error("llm.complete must not be called");
       },
     },
     fetchHtml: async (url: string) => {
@@ -169,10 +176,10 @@ describe("S1 — prescreen excludes without any LLM call", () => {
       description: "Provide patient care in a hospital setting",
     });
 
-    const anthropic = mockAnthropic(() => {
+    const llm = mockLlm(() => {
       throw new Error("should not call the model in prescreen-only case");
     });
-    const deps: ClassifierDeps = { anthropic, fetchHtml: async () => "" };
+    const deps: ClassifierDeps = { llm, fetchHtml: async () => "" };
 
     const { outcomes, errors } = await scoreMatch(
       [jobA, jobB],
@@ -192,7 +199,7 @@ describe("S1 — prescreen excludes without any LLM call", () => {
     expect(b.roleCategory).toBe("other");
     expect(b.matchReasons).toEqual(["prescreen:no-keyword-match"]);
 
-    expect(anthropic.calls).toHaveLength(0);
+    expect(llm.calls).toHaveLength(0);
   });
 
   it("prescreen() is a pure function returning excluded reasons", () => {
@@ -211,10 +218,10 @@ describe("S1 — prescreen excludes without any LLM call", () => {
 });
 
 // ---------------------------------------------------------------------------
-// S2 — 20-job batch = exactly one haiku call updating all 20 rows
+// S2 — 8-job batch = exactly one default-tier call updating all 8 rows
 // ---------------------------------------------------------------------------
 
-describe("S2 — 20-job batch is one haiku call updating all 20 rows", () => {
+describe("S2 — 8-job batch is one default-tier call updating all 8 rows", () => {
   let db: Db;
   let close: () => Promise<void>;
 
@@ -225,10 +232,10 @@ describe("S2 — 20-job batch is one haiku call updating all 20 rows", () => {
     await close();
   });
 
-  it("makes exactly one haiku call with criteria + 20 ids, persists all 20", async () => {
-    // Insert 20 jobs whose titles each contain a role keyword, no excludes.
+  it("makes exactly one default-tier call with criteria + 8 ids, persists all 8", async () => {
+    // Insert 8 jobs (BATCH_SIZE) whose titles each contain a role keyword.
     const ids: string[] = [];
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 8; i++) {
       const raw: RawJob = {
         source: "greenhouse",
         externalId: `gh-${i}`,
@@ -244,28 +251,26 @@ describe("S2 — 20-job batch is one haiku call updating all 20 rows", () => {
 
     const fixture = await loadFixture("anthropic/score-batch-20.json");
 
-    const anthropic = mockAnthropic((_params, _idx) =>
-      remapScores(fixture, ids),
-    );
-    const deps: ClassifierDeps = { anthropic, fetchHtml: async () => "" };
+    const llm = mockLlm((_req, _idx) => remapScores(fixture, ids));
+    const deps: ClassifierDeps = { llm, fetchHtml: async () => "" };
 
     const stats = await classifyPendingJobs(db, DEFAULT_CRITERIA, deps);
 
-    // Exactly one scoring call, haiku, prompt carries criteria JSON + all ids.
-    expect(anthropic.calls).toHaveLength(1);
-    const call = anthropic.calls[0];
-    expect(call.model).toBe("claude-haiku-4-5");
-    const prompt = call.messages.map((m) => String(m.content)).join("\n");
+    // Exactly one scoring call, default tier, prompt carries criteria + all ids.
+    expect(llm.calls).toHaveLength(1);
+    const call = llm.calls[0];
+    expect(call.tier).toBe("default");
+    const prompt = call.user;
     expect(prompt).toContain(JSON.stringify(DEFAULT_CRITERIA));
     for (const id of ids) expect(prompt).toContain(id);
 
-    expect(stats.scored).toBe(20);
+    expect(stats.scored).toBe(8);
 
-    // All 20 rows persisted with valid values.
+    // All 8 rows persisted with valid values.
     const rows = await db.query(
       `select match_score, role_category, match_reasons from jobs where match_score is not null`,
     );
-    expect(rows.rows).toHaveLength(20);
+    expect(rows.rows).toHaveLength(8);
     const enums = ["react-native", "react", "frontend", "fullstack", "other"];
     for (const r of rows.rows) {
       expect(r.match_score).not.toBeNull();
@@ -295,19 +300,19 @@ describe("S3 — ambiguous 40-70 score re-scored once by sonnet", () => {
       description: "react native expo mobile",
     });
 
-    const haiku = remapScores(
+    const defaultText = remapScores(
       await loadFixture("anthropic/score-ambiguous.json"),
       [jobA.id, jobB.id],
     );
-    const sonnet = remapScores(
+    const strongText = remapScores(
       await loadFixture("anthropic/rescore-sonnet.json"),
       [jobA.id],
     );
 
-    const anthropic = mockAnthropic((params) =>
-      params.model === "claude-sonnet-4-6" ? sonnet : haiku,
+    const llm = mockLlm((req) =>
+      req.tier === "strong" ? strongText : defaultText,
     );
-    const deps: ClassifierDeps = { anthropic, fetchHtml: async () => "" };
+    const deps: ClassifierDeps = { llm, fetchHtml: async () => "" };
 
     const { outcomes, errors } = await scoreMatch(
       [jobA, jobB],
@@ -317,16 +322,12 @@ describe("S3 — ambiguous 40-70 score re-scored once by sonnet", () => {
 
     expect(errors).toEqual([]);
 
-    // Exactly one haiku call and exactly one sonnet call.
-    const haikuCalls = anthropic.calls.filter(
-      (c) => c.model === "claude-haiku-4-5",
-    );
-    const sonnetCalls = anthropic.calls.filter(
-      (c) => c.model === "claude-sonnet-4-6",
-    );
-    expect(haikuCalls).toHaveLength(1);
-    expect(sonnetCalls).toHaveLength(1);
-    expect(anthropic.calls).toHaveLength(2);
+    // Exactly one default-tier call and exactly one strong-tier call.
+    const defaultCalls = llm.calls.filter((c) => (c.tier ?? "default") === "default");
+    const strongCalls = llm.calls.filter((c) => c.tier === "strong");
+    expect(defaultCalls).toHaveLength(1);
+    expect(strongCalls).toHaveLength(1);
+    expect(llm.calls).toHaveLength(2);
 
     const a = outcomes.find((o) => o.jobId === jobA.id)!;
     const b = outcomes.find((o) => o.jobId === jobB.id)!;
@@ -445,11 +446,13 @@ describe("S7 — unknown apply page triggers one LLM fallback", () => {
       raw: null,
     });
 
-    const fixture = await loadFixture("anthropic/difficulty-fallback.json");
+    const fixtureText = envelopeText(
+      await loadFixture("anthropic/difficulty-fallback.json"),
+    );
     const fetchCalls: string[] = [];
-    const anthropic = mockAnthropic(() => fixture);
+    const llm = mockLlm(() => fixtureText);
     const deps: ClassifierDeps = {
-      anthropic,
+      llm,
       fetchHtml: async (url) => {
         fetchCalls.push(url);
         return html;
@@ -461,13 +464,11 @@ describe("S7 — unknown apply page triggers one LLM fallback", () => {
     expect(errors).toEqual([]);
     // fetched exactly once with the job's apply_url
     expect(fetchCalls).toEqual([applyUrl]);
-    // exactly one haiku call
-    expect(anthropic.calls).toHaveLength(1);
-    expect(anthropic.calls[0].model).toBe("claude-haiku-4-5");
+    // exactly one default-tier call
+    expect(llm.calls).toHaveLength(1);
+    expect(llm.calls[0].tier).toBe("default");
     // prompt carries the reference examples verbatim
-    const prompt = anthropic.calls[0].messages
-      .map((m) => String(m.content))
-      .join("\n");
+    const prompt = llm.calls[0].user;
     expect(prompt).toContain("mattermost");
     expect(prompt).toContain("Ulta Beauty");
     // valid enum + 1-3 reasons
@@ -532,14 +533,15 @@ describe("S8 — Anthropic failure: unclassified, error recorded, run continues"
       rankJobs.push(job);
     }
 
-    const diffFixture = await loadFixture("anthropic/difficulty-fallback.json");
+    const diffText = envelopeText(
+      await loadFixture("anthropic/difficulty-fallback.json"),
+    );
 
-    // Mock: any haiku SCORING call (3-job batch) rejects with 529.
+    // Mock: any SCORING call (3-job batch) rejects with 529.
     // The difficulty fallback: first call rejects, second resolves.
     let fallbackCall = 0;
-    const anthropic = mockAnthropic((params) => {
-      const prompt = params.messages.map((m) => String(m.content)).join("\n");
-      if (prompt.includes("scoring job postings")) {
+    const llm = mockLlm((req) => {
+      if (req.user.includes("scoring job postings")) {
         // scoring batch → 529 overloaded
         return Promise.reject(overloadedError());
       }
@@ -548,11 +550,11 @@ describe("S8 — Anthropic failure: unclassified, error recorded, run continues"
       if (fallbackCall === 1) {
         return Promise.reject(overloadedError());
       }
-      return diffFixture;
+      return diffText;
     });
 
     const deps: ClassifierDeps = {
-      anthropic,
+      llm,
       fetchHtml: async () => "<html><body>apply here</body></html>",
     };
 
@@ -587,7 +589,7 @@ describe("S8 — Anthropic failure: unclassified, error recorded, run continues"
     // Both error strings are present in the collected errors.
     expect(stats.errors.length).toBeGreaterThanOrEqual(2);
     const scoreErr = stats.errors.some((e) =>
-      e.includes("haiku batch failed"),
+      e.includes("scoring batch failed"),
     );
     const fallbackErr = stats.errors.some((e) =>
       e.includes("fallback failed"),

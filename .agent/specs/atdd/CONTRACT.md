@@ -19,14 +19,14 @@ Development and initial operation happen on Chris's main Mac. When stable, the c
 - Supabase Postgres (hosted). Both the crawler and admin talk to it over a **direct Postgres connection** using the `pg` client and the connection string in `SUPABASE_DB_URL` (server-side only — never shipped to the browser). We do not use PostgREST/supabase-js in v1, because the pipeline needs real SQL (upserts with `ON CONFLICT`, `pg_try_advisory_lock`). The crawler must use a **session-mode** connection (direct :5432 or the session pooler) so advisory locks hold for a run; the admin may use the transaction pooler.
 - Auth0 for admin login, with an email allowlist.
 - Discord incoming webhook for notifications (no bot).
-- Anthropic API for classification (claude-haiku-4-5 default, claude-sonnet-4-6 for ambiguous cases) and for web-search-based discovery.
+- The crawler classifies with a **LOCAL LM Studio model by default (free to run)** — an OpenAI-compatible server on the crawler Mac (`LMSTUDIO_BASE_URL`, default `http://localhost:1234/v1`; `LMSTUDIO_MODEL`, default `qwen2.5-32b-instruct`). Classification goes through a provider-neutral LLM layer (`LlmClient.complete`, tiers `default`/`strong`; on the single local model both tiers map to the loaded model). **Anthropic is an optional fallback provider** (`LLM_PROVIDER=anthropic` → claude-haiku-4-5 for the default tier, claude-sonnet-4-6 for the strong/ambiguous tier). The provider is selected by `LLM_PROVIDER` (default `lmstudio`). Web-search-based company discovery still uses the Anthropic `web_search` tool (it cannot run locally) and requires `ANTHROPIC_API_KEY` only when used.
 - Tests: vitest, with fixtures captured from real sources. Commands: `pnpm test`, `pnpm typecheck`, `pnpm build`.
 - Toolchain: Node 22 (this repo's `.nvmrc`), pnpm workspaces. On the current dev Mac, Node 22 is available via nvm at `~/.nvm/versions/node/v22.21.1/bin` — activate it before running any pnpm/tsx command. TypeScript is consumed as source: packages are ESM, run via `tsx`, tested via `vitest`, type-checked via `tsc --noEmit`; only the admin has a real build step (Next). Package names: `@jobscout/core`, `@jobscout/crawler`, `@jobscout/admin`.
 - Docker-free testing: the data-layer and pipeline tests run against **PGlite** (`@electric-sql/pglite`), an in-process Postgres — no Docker, no Supabase CLI. The SAME SQL files in `supabase/migrations/` are applied to a fresh PGlite database by a test helper, and to the real Supabase DB by `pnpm db:push` (a tiny `pg` runner that executes the migration files in filename order). `packages/core` exposes a `Db` abstraction with one method — `query(text, params) => Promise<{ rows }>` — satisfied by both `pg.Pool` (production, from `SUPABASE_DB_URL`) and PGlite (tests).
 
 ## Environment variables
 
-- Crawler (`apps/crawler/.env`): `SUPABASE_DB_URL` (direct/session-mode Postgres connection string), `ANTHROPIC_API_KEY`, `DISCORD_WEBHOOK_URL`
+- Crawler (`apps/crawler/.env`): `SUPABASE_DB_URL` (direct/session-mode Postgres connection string), `DISCORD_WEBHOOK_URL`, and the LLM provider vars: `LLM_PROVIDER` (default `lmstudio`), `LMSTUDIO_BASE_URL` (default `http://localhost:1234/v1`), `LMSTUDIO_MODEL` (default `qwen2.5-32b-instruct`). `ANTHROPIC_API_KEY` is **OPTIONAL** — only required when `LLM_PROVIDER=anthropic` (or to run web-search discovery). With the LM Studio defaults, the crawler runs fully local and free with no Anthropic key.
 - Admin (Vercel env): `SUPABASE_DB_URL` (transaction-pooler string is fine here), `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, `APP_BASE_URL`, `ADMIN_ALLOWED_EMAILS` (comma-separated) — these are the **@auth0/nextjs-auth0 v4** names; v3 used `AUTH0_BASE_URL` and `AUTH0_ISSUER_BASE_URL` which are no longer correct.
 - Tests: none required — PGlite runs in-process.
 - Supersession note: earlier specs mention `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`; those are replaced by `SUPABASE_DB_URL`. The security rule they state still holds verbatim: no server secret (the DB URL, Auth0 secrets) may ever reach the client bundle, and there are no `NEXT_PUBLIC_` database vars.
@@ -99,7 +99,7 @@ No other transitions. The data layer in `packages/core` enforces this; invalid t
 Deterministic rules first, LLM fallback second:
 1. Greenhouse: fetch the job with `questions=true`. Standard question set = `{first_name, last_name, email, phone, resume, cover_letter, linkedin, website, location}`. All questions within the set → **easy**; anything beyond → **medium**.
 2. `apply_url` host matches a `HARD_ATS_DOMAINS` list (`myworkdayjobs.com`, `icims.com`, `taleo.net`, `successfactors.com`, `oraclecloud.com`, `adp.com`, `brassring.com`) → **hard** (no LLM call).
-3. Otherwise: fetch the apply page HTML and ask Claude to classify per this rubric, returning `difficulty` + 1–3 `difficulty_reasons`.
+3. Otherwise: fetch the apply page HTML and ask the LLM (local by default) to classify per this rubric, returning `difficulty` + 1–3 `difficulty_reasons`.
 
 ## Matching criteria (stored in `criteria.value`, editable in admin)
 

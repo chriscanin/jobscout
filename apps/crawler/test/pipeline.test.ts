@@ -4,7 +4,7 @@
  * Discipline: NO network. Every cycle runs in-process on PGlite (migrations
  * applied, criteria row seeded) with:
  *   - stub adapters injected via `opts.adapters` (in-memory SourceAdapters),
- *   - a mock Anthropic client so classification is deterministic (all stub jobs
+ *   - a mock LLM client so classification is deterministic (all stub jobs
  *     score >= 60, role_category priority <= 2 → notify-eligible, difficulty easy),
  *   - a mock Discord fetch (records POST bodies; no real webhook),
  *   - an injected `acquireLock` so the single-flight branch is deterministic
@@ -20,7 +20,7 @@ import {
   type SourceAdapter,
 } from "@jobscout/core";
 import { runCrawl, CRAWL_LOCK_KEY, type CrawlLock } from "../src/pipeline.js";
-import type { MessageCreateParams, MessageResponse } from "../src/anthropic.js";
+import type { LlmClient, LlmRequest } from "../src/llm.js";
 
 let db: Db;
 let closeDb: () => Promise<void>;
@@ -95,53 +95,39 @@ function rawJob(source: RawJob["source"], overrides: Partial<RawJob> = {}): RawJ
 }
 
 /**
- * Mock Anthropic client: answers BOTH classifier calls deterministically.
+ * Mock LLM client: answers BOTH classifier calls deterministically.
  *  - scoring (prompt asks for a JSON array): score 85, role_category react-native.
  *  - difficulty (prompt asks for a JSON object): easy.
  * Records every request for assertions.
  */
-function mockAnthropic(): {
-  messages: { create(p: MessageCreateParams): Promise<MessageResponse> };
-  calls: MessageCreateParams[];
-} {
-  const calls: MessageCreateParams[] = [];
+function mockLlm(): LlmClient & { calls: LlmRequest[] } {
+  const calls: LlmRequest[] = [];
   return {
     calls,
-    messages: {
-      async create(params: MessageCreateParams): Promise<MessageResponse> {
-        calls.push(params);
-        const prompt = String(params.messages[0]?.content ?? "");
-        let text: string;
-        if (prompt.includes("JSON array")) {
-          // scoreMatch batch: echo each job id with a passing score.
-          const jobsJson = prompt.match(/JOBS \(JSON\):\n(\[[\s\S]*?\])\n/);
-          const ids: string[] = jobsJson
-            ? (JSON.parse(jobsJson[1]) as Array<{ id: string }>).map((j) => j.id)
-            : [];
-          text = JSON.stringify(
-            ids.map((id) => ({
-              id,
-              role_category: "react-native",
-              match_score: 85,
-              match_reasons: ["react native match"],
-            })),
-          );
-        } else {
-          // difficulty fallback: JSON object.
-          text = JSON.stringify({
-            difficulty: "easy",
-            difficulty_reasons: ["apply in place, standard fields"],
-          });
-        }
-        return {
-          id: "msg_test",
-          model: params.model,
-          role: "assistant",
-          content: [{ type: "text", text }],
-          stop_reason: "end_turn",
-          usage: { input_tokens: 1, output_tokens: 1 },
-        };
-      },
+    label: "mock:llm",
+    async complete(req: LlmRequest): Promise<string> {
+      calls.push(req);
+      const prompt = req.user;
+      if (prompt.includes("JSON array")) {
+        // scoreMatch batch: echo each job id with a passing score.
+        const jobsJson = prompt.match(/JOBS \(JSON\):\n(\[[\s\S]*?\])\n/);
+        const ids: string[] = jobsJson
+          ? (JSON.parse(jobsJson[1]) as Array<{ id: string }>).map((j) => j.id)
+          : [];
+        return JSON.stringify(
+          ids.map((id) => ({
+            id,
+            role_category: "react-native",
+            match_score: 85,
+            match_reasons: ["react native match"],
+          })),
+        );
+      }
+      // difficulty fallback: JSON object.
+      return JSON.stringify({
+        difficulty: "easy",
+        difficulty_reasons: ["apply in place, standard fields"],
+      });
     },
   };
 }
@@ -200,7 +186,7 @@ describe("Scenario 1 — full cycle happy path", () => {
       trigger: "manual",
       adapters,
       acquireLock: grantLock(),
-      anthropic: mockAnthropic(),
+      llm: mockLlm(),
       fetch: instantFetch(),
       webhookUrl: "https://discord.test/webhook",
       notifyFetch: discord.fetchImpl,
@@ -263,7 +249,7 @@ describe("Scenario 2 — one adapter throws, run continues", () => {
       trigger: "manual",
       adapters,
       acquireLock: grantLock(),
-      anthropic: mockAnthropic(),
+      llm: mockLlm(),
       fetch: instantFetch(),
       webhookUrl: "https://discord.test/webhook",
       notifyFetch: discord.fetchImpl,
@@ -307,7 +293,7 @@ describe("Scenario 3 — lock already held → no-op", () => {
     const runsBefore = await countRows("crawl_runs");
 
     const discord = mockDiscord();
-    const anthropic = mockAnthropic();
+    const llm = mockLlm();
     const logger = capturingLogger();
 
     const summary = await runCrawl(db, {
@@ -315,7 +301,7 @@ describe("Scenario 3 — lock already held → no-op", () => {
       adapters: [stubAdapter("greenhouse", [rawJob("greenhouse")])],
       // Lock NOT acquired (another session holds it).
       acquireLock: async () => null,
-      anthropic,
+      llm,
       webhookUrl: "https://discord.test/webhook",
       notifyFetch: discord.fetchImpl,
       logger,
@@ -330,9 +316,9 @@ describe("Scenario 3 — lock already held → no-op", () => {
     expect(await countRows("jobs")).toBe(jobsBefore);
     expect(await countRows("crawl_runs")).toBe(runsBefore);
 
-    // Zero HTTP: no Discord POST, no Anthropic call.
+    // Zero HTTP: no Discord POST, no LLM call.
     expect(discord.callCount()).toBe(0);
-    expect(anthropic.calls).toHaveLength(0);
+    expect(llm.calls).toHaveLength(0);
   });
 });
 
@@ -355,7 +341,7 @@ describe("Scenario 4 — crashed run releases the lock", () => {
       trigger: "manual",
       adapters: [stubAdapter("greenhouse", [rawJob("greenhouse")])],
       acquireLock,
-      anthropic: mockAnthropic(),
+      llm: mockLlm(),
       fetch: instantFetch(),
       webhookUrl: "https://discord.test/webhook",
       notifyFetch: discord.fetchImpl,

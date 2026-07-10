@@ -14,18 +14,19 @@
  *   GET  /v1/boards/:token/jobs/:id?questions=true      greenhouse job detail
  *   GET  /v0/postings/:slug?mode=json                   lever postings
  *   GET  /lever-apply/:slug/:id/apply                   lever apply-page HTML (difficulty rule 3)
- *   POST /anthropic/v1/messages                         fixture-backed Anthropic Messages
+ *   POST /v1/chat/completions                           fixture-backed LM Studio (OpenAI-compatible)
+ *   GET  /v1/models                                     fixture-backed LM Studio /models (doctor)
  *   POST /discord/webhook  (and GET for doctor metadata)
  *   GET  /__requests                                    the recorded request log (test-only)
  *   POST /__control/board                               swap which board variant is served (test-only)
  *
  * Every request is RECORDED (method, path, query, parsed JSON body, timestamp)
- * so tests can assert exactly what Discord and Anthropic received.
+ * so tests can assert exactly what Discord and the LLM received.
  *
  * The routing fetch is exposed via `makeRoutingFetch()` and the fixture-backed
- * Anthropic client via `makeFixtureAnthropic()`. Both point at this server, so
- * the real HttpClient politeness/retry wrapper and the real classifier prompts
- * are exercised end to end.
+ * LLM client via `makeFixtureLlm()`. Both point at this server, so the real
+ * HttpClient politeness/retry wrapper and the real classifier prompts are
+ * exercised end to end.
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
@@ -33,11 +34,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHttpClient, type HttpClient } from "../../src/http.js";
-import type {
-  AnthropicLike,
-  MessageCreateParams,
-  MessageResponse,
-} from "../../src/anthropic.js";
+import type { LlmClient, LlmRequest } from "../../src/llm.js";
 
 const FIXTURES_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -85,8 +82,8 @@ export interface FixtureServer {
   requests: () => RecordedRequest[];
   /** Just the recorded Discord webhook POST bodies. */
   discordPosts: () => unknown[];
-  /** Just the recorded Anthropic message-create bodies. */
-  anthropicPosts: () => Array<Record<string, unknown>>;
+  /** Just the recorded LM Studio chat-completions request bodies. */
+  llmPosts: () => Array<Record<string, unknown>>;
   /** Clear the recorded request log (used between scenario phases). */
   clearRequests: () => void;
   /** Drop a greenhouse posting from the served board (scenario 4 mutation). */
@@ -97,8 +94,12 @@ export interface FixtureServer {
   resetBoard: () => void;
   /** A routing fetch (real HttpClient) that maps real hosts onto this server. */
   makeRoutingFetch: () => HttpClient;
-  /** A fixture-backed AnthropicLike whose calls are recorded by the server. */
-  makeFixtureAnthropic: () => AnthropicLike;
+  /** A fixture-backed LlmClient whose calls are recorded by the server. */
+  makeFixtureLlm: () => LlmClient;
+  /** The fixture LM Studio base URL (for the doctor /models check). */
+  llmBaseUrl: () => string;
+  /** The fixture LM Studio model id (for the doctor /models check). */
+  llmModel: () => string;
   /** Stop the server. */
   close: () => Promise<void>;
 }
@@ -202,15 +203,19 @@ function difficultyResponseText(): string {
   });
 }
 
-/** Build a full MessageResponse envelope around a text body. */
-function messageEnvelope(text: string, model: string): MessageResponse {
+/** The fixture LM Studio model id (both tiers map to it). */
+const FIXTURE_LLM_MODEL = "qwen2.5-32b-instruct";
+
+/** Build an OpenAI chat-completions envelope around an assistant text body. */
+function chatCompletionEnvelope(text: string): Record<string, unknown> {
   return {
-    id: `msg_fixture_${Math.random().toString(36).slice(2, 10)}`,
-    model,
-    role: "assistant",
-    content: [{ type: "text", text }],
-    stop_reason: "end_turn",
-    usage: { input_tokens: 10, output_tokens: 20 },
+    id: `chatcmpl_fixture_${Math.random().toString(36).slice(2, 10)}`,
+    object: "chat.completion",
+    model: FIXTURE_LLM_MODEL,
+    choices: [
+      { index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" },
+    ],
+    usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
   };
 }
 
@@ -325,17 +330,26 @@ export async function startFixtureServer(): Promise<FixtureServer> {
       return html(res, 200, leverApplyHtml);
     }
 
-    // --- Anthropic Messages (fixture-backed) ---
-    if (pathname === "/anthropic/v1/messages" && method === "POST") {
-      const params = (parsedBody ?? {}) as Partial<MessageCreateParams>;
-      const prompt = firstUserText(params);
-      const model = String(params.model ?? "claude-haiku-4-5");
+    // --- LM Studio /models (doctor readiness check) ---
+    if (pathname === "/v1/models" && method === "GET") {
+      return json(res, 200, {
+        object: "list",
+        data: [{ id: FIXTURE_LLM_MODEL, object: "model" }],
+      });
+    }
+
+    // --- LM Studio chat completions (fixture-backed classification) ---
+    if (pathname === "/v1/chat/completions" && method === "POST") {
+      const body = (parsedBody ?? {}) as {
+        messages?: Array<{ role?: string; content?: unknown }>;
+      };
+      const prompt = firstUserText(body.messages ?? []);
       // Difficulty fallback prompts carry the rubric marker "Ulta Beauty".
       if (prompt.includes("Ulta Beauty")) {
-        return json(res, 200, messageEnvelope(difficultyResponseText(), model));
+        return json(res, 200, chatCompletionEnvelope(difficultyResponseText()));
       }
       // Otherwise it is the scoring batch (carries the serialized criteria JSON).
-      return json(res, 200, messageEnvelope(scoreResponseFor(prompt), model));
+      return json(res, 200, chatCompletionEnvelope(scoreResponseFor(prompt)));
     }
 
     // --- Discord webhook ---
@@ -383,23 +397,45 @@ export async function startFixtureServer(): Promise<FixtureServer> {
     });
   }
 
+  // The LM Studio base URL served by this fixture (OpenAI-compatible under /v1).
+  const llmBaseUrl = `${baseUrl}/v1`;
+
   /**
-   * A fixture-backed Anthropic client. Every `messages.create` is POSTed to the
-   * server's `/anthropic/v1/messages` route so it lands in the recorded request
-   * log (tests assert on the scoring-batch body and the difficulty-rubric body).
-   * The server computes the deterministic response.
+   * A fixture-backed LlmClient. Every `complete` is POSTed to the server's
+   * `/v1/chat/completions` route (OpenAI-compatible) so it lands in the recorded
+   * request log (tests assert on the scoring-batch body and the difficulty-rubric
+   * body). The server computes the deterministic response and honors the
+   * `jsonSchema` by returning valid JSON in the message content.
    */
-  function makeFixtureAnthropic(): AnthropicLike {
+  function makeFixtureLlm(): LlmClient {
     return {
-      messages: {
-        async create(params: MessageCreateParams): Promise<MessageResponse> {
-          const r = await globalThis.fetch(`${baseUrl}/anthropic/v1/messages`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(params),
-          });
-          return (await r.json()) as MessageResponse;
-        },
+      label: `lmstudio:${FIXTURE_LLM_MODEL}`,
+      async complete(req: LlmRequest): Promise<string> {
+        const messages: Array<{ role: "system" | "user"; content: string }> = [];
+        if (req.system) messages.push({ role: "system", content: req.system });
+        messages.push({ role: "user", content: req.user });
+        const body: Record<string, unknown> = {
+          model: FIXTURE_LLM_MODEL,
+          messages,
+          temperature: 0,
+          max_tokens: req.maxTokens ?? 2048,
+        };
+        if (req.jsonSchema) {
+          body.response_format = {
+            type: "json_schema",
+            json_schema: { name: "out", strict: true, schema: req.jsonSchema },
+          };
+        }
+        const r = await globalThis.fetch(`${llmBaseUrl}/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const json = (await r.json()) as {
+          choices?: Array<{ message?: { content?: unknown } }>;
+        };
+        const content = json.choices?.[0]?.message?.content;
+        return typeof content === "string" ? content : "";
       },
     };
   }
@@ -411,9 +447,9 @@ export async function startFixtureServer(): Promise<FixtureServer> {
       requests
         .filter((r) => r.path === "/discord/webhook" && r.method === "POST")
         .map((r) => r.body),
-    anthropicPosts: () =>
+    llmPosts: () =>
       requests
-        .filter((r) => r.path === "/anthropic/v1/messages" && r.method === "POST")
+        .filter((r) => r.path === "/v1/chat/completions" && r.method === "POST")
         .map((r) => (r.body ?? {}) as Record<string, unknown>),
     clearRequests: () => {
       requests.length = 0;
@@ -429,7 +465,9 @@ export async function startFixtureServer(): Promise<FixtureServer> {
       droppedLever.clear();
     },
     makeRoutingFetch,
-    makeFixtureAnthropic,
+    makeFixtureLlm,
+    llmBaseUrl: () => llmBaseUrl,
+    llmModel: () => FIXTURE_LLM_MODEL,
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve())),
@@ -476,9 +514,10 @@ export function rewriteUrl(target: string, baseUrl: string): string | null {
   return null;
 }
 
-/** Extract the first user message's text from message-create params. */
-function firstUserText(params: Partial<MessageCreateParams>): string {
-  const messages = params.messages ?? [];
+/** Extract the first user message's text from OpenAI chat-completions messages. */
+function firstUserText(
+  messages: Array<{ role?: string; content?: unknown }>,
+): string {
   for (const m of messages) {
     if (m.role !== "user") continue;
     if (typeof m.content === "string") return m.content;

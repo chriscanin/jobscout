@@ -47,7 +47,7 @@ import {
   syncSeedCompanies,
   upsertJob,
 } from "@jobscout/core";
-import { createAnthropicClient, type AnthropicLike } from "./anthropic.js";
+import { createLlmClient, type LlmClient } from "./llm.js";
 import { classifyPendingJobs, type ClassifierDeps } from "./classifier.js";
 import { createHttpClient, type HttpClient } from "./http.js";
 import { notifyNewMatches } from "./notifier.js";
@@ -114,8 +114,8 @@ export interface RunCrawlOptions {
   dbUrl?: string;
   /** Politeness+retry fetch handed to adapters + classifier. Defaults to a real one. */
   fetch?: HttpClient;
-  /** Anthropic client for classification. Defaults to the real one. */
-  anthropic?: AnthropicLike;
+  /** Provider-neutral LLM client for classification. Defaults to the configured provider. */
+  llm?: LlmClient;
   /** Discord webhook URL for notifications. Defaults to `DISCORD_WEBHOOK_URL`. */
   webhookUrl?: string;
   /** fetch used for the Discord POST. Defaults to the injected/real `fetch`. */
@@ -282,7 +282,7 @@ export async function runCrawl(
   const now = opts.now ?? (() => new Date());
   const adapters = opts.adapters ?? ADAPTERS;
   const fetchHelper = opts.fetch ?? createHttpClient();
-  const anthropic = opts.anthropic ?? createAnthropicClient();
+  const llm = opts.llm ?? createLlmClient();
   const webhookUrl = opts.webhookUrl ?? process.env.DISCORD_WEBHOOK_URL ?? "";
   const notifyFetch =
     opts.notifyFetch ??
@@ -347,8 +347,9 @@ export async function runCrawl(
 
     // 6. Classify unclassified jobs (score, then difficulty). Classifier
     // failures are recorded under stats.classifier; the run continues.
+    logger.info(`classifier LLM provider: ${llm.label}`);
     const classifierDeps: ClassifierDeps = {
-      anthropic,
+      llm,
       fetchHtml: async (url: string) => {
         const res = await fetchHelper(url);
         return res.text();

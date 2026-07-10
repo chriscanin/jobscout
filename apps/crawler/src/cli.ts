@@ -4,7 +4,7 @@
  *   crawl   — one full cycle (default trigger `manual`; launchd passes launchd)
  *   loop    — foreground standing loop: run a cycle, sleep, repeat (trigger loop)
  *   discover— web-search company discovery (separate from crawl, per spec 04)
- *   doctor  — machine readiness: env, supabase, discord (GET only), anthropic
+ *   doctor  — machine readiness: env, supabase, discord (GET only), llm (provider-aware)
  *
  * The commander `.action`s are thin wrappers: they build a real pg `Db`, call
  * the exported entry function (runCrawl / runLoop / runDoctor / runDiscoverCli),
@@ -19,7 +19,10 @@ import { fileURLToPath } from "node:url";
 import "dotenv/config";
 import { Command } from "commander";
 import { createPgDb, getCriteria, type Db, type Logger } from "@jobscout/core";
-import { createAnthropicClient, type AnthropicLike } from "./anthropic.js";
+import {
+  createAnthropicMessagesClient,
+  type AnthropicLike,
+} from "./anthropic.js";
 import { createHttpClient } from "./http.js";
 import { runCrawl, type CrawlSummary } from "./pipeline.js";
 import {
@@ -28,12 +31,32 @@ import {
   type SearchClient,
 } from "./discovery.js";
 
-/** The env vars a crawler machine must have (CONTRACT §Environment variables). */
+/**
+ * The env vars a crawler machine must ALWAYS have (CONTRACT §Environment
+ * variables), independent of LLM provider. The LLM provider adds its own
+ * required vars (see {@link llmRequiredEnvVars}).
+ */
 export const REQUIRED_ENV_VARS = [
   "SUPABASE_DB_URL",
-  "ANTHROPIC_API_KEY",
   "DISCORD_WEBHOOK_URL",
 ] as const;
+
+/** Default LLM provider when `LLM_PROVIDER` is unset (CONTRACT §Stack). */
+const DEFAULT_LLM_PROVIDER = "lmstudio";
+
+/**
+ * The provider-appropriate LLM env vars required by the doctor env check.
+ *   - lmstudio (default): LMSTUDIO_BASE_URL + LMSTUDIO_MODEL — both have sensible
+ *     defaults in code, so passing them via env is optional; but the doctor
+ *     requires them PRESENT so a machine is explicitly configured. Callers rely
+ *     on the defaults being written to .env (see .env.example).
+ *   - anthropic: ANTHROPIC_API_KEY (there is no safe default).
+ */
+export function llmRequiredEnvVars(provider: string): readonly string[] {
+  return provider === "anthropic"
+    ? ["ANTHROPIC_API_KEY"]
+    : ["LMSTUDIO_BASE_URL", "LMSTUDIO_MODEL"];
+}
 
 const MIGRATIONS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -175,7 +198,8 @@ export async function runDiscoverCli(
     return 1;
   }
   const criteria = await getCriteria(db);
-  const searchClient = deps?.searchClient ?? createWebSearchClient(createAnthropicClient());
+  const searchClient =
+    deps?.searchClient ?? createWebSearchClient(createAnthropicMessagesClient());
   const fetchFn =
     deps?.fetchFn ??
     ((input: RequestInfo | URL, init?: RequestInit) =>
@@ -247,9 +271,14 @@ export interface DoctorResult {
 /**
  * env check (spec 07 §2, check 1): every required env var is set and non-empty.
  * Pure over `env` so it is unit-testable in isolation. Names EACH missing var.
+ * The required set is provider-aware: it does NOT require ANTHROPIC_API_KEY when
+ * the provider is lmstudio (the default), and requires the LM Studio vars there
+ * instead.
  */
 export function checkEnv(env: NodeJS.ProcessEnv): DoctorCheck {
-  const missing = REQUIRED_ENV_VARS.filter((k) => {
+  const provider = env.LLM_PROVIDER ?? DEFAULT_LLM_PROVIDER;
+  const required = [...REQUIRED_ENV_VARS, ...llmRequiredEnvVars(provider)];
+  const missing = required.filter((k) => {
     const v = env[k];
     return v === undefined || v.trim() === "";
   });
@@ -268,9 +297,9 @@ export interface DoctorDeps {
   env?: NodeJS.ProcessEnv;
   /** Opens a Db from a connection string. Defaults to `createPgDb`. */
   makeDb?: (url: string) => Db;
-  /** fetch used for the Discord GET + Anthropic ping. Defaults to global fetch. */
+  /** fetch used for the Discord GET + LM Studio /models GET. Defaults to global fetch. */
   fetchImpl?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  /** Anthropic client factory. Defaults to `createAnthropicClient`. */
+  /** Raw Anthropic Messages client factory (anthropic-provider ping). Defaults to the real one. */
   makeAnthropic?: (apiKey: string) => AnthropicLike;
   /** Migration files on disk (for the "migrations current" check). */
   listMigrations?: () => Promise<string[]>;
@@ -331,14 +360,65 @@ async function checkDiscord(deps: DoctorDeps): Promise<DoctorCheck> {
   }
 }
 
-/** anthropic check (check 4): cheapest call — model claude-haiku-4-5, max_tokens 1. */
-async function checkAnthropic(deps: DoctorDeps): Promise<DoctorCheck> {
+/**
+ * llm check (check 4): provider-aware.
+ *   - lmstudio (default): GET `${LMSTUDIO_BASE_URL}/models`; pass when the server
+ *     responds 200 and (if LMSTUDIO_MODEL is set) that model id is present in the
+ *     list. Detail names the base URL + model. No tokens are spent.
+ *   - anthropic: the cheapest possible call — model claude-haiku-4-5, max_tokens 1.
+ * Injectable (fetchImpl / makeAnthropic) so tests run offline.
+ */
+async function checkLlm(deps: DoctorDeps): Promise<DoctorCheck> {
   const env = deps.env ?? process.env;
+  const provider = env.LLM_PROVIDER ?? DEFAULT_LLM_PROVIDER;
+  if (provider === "anthropic") return checkLlmAnthropic(deps, env);
+  return checkLlmLmStudio(deps, env);
+}
+
+/** LM Studio branch: GET /models and confirm the configured model is loaded. */
+async function checkLlmLmStudio(
+  deps: DoctorDeps,
+  env: NodeJS.ProcessEnv,
+): Promise<DoctorCheck> {
+  const baseUrl = env.LMSTUDIO_BASE_URL ?? "http://localhost:1234/v1";
+  const model = env.LMSTUDIO_MODEL;
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  try {
+    const res = await fetchImpl(`${baseUrl}/models`, { method: "GET" });
+    if (res.status !== 200) {
+      return { name: "llm", ok: false, detail: `GET ${baseUrl}/models returned HTTP ${res.status}` };
+    }
+    const body = (await res.json()) as { data?: Array<{ id?: unknown }> };
+    const ids = Array.isArray(body.data)
+      ? body.data.map((m) => (typeof m.id === "string" ? m.id : "")).filter(Boolean)
+      : [];
+    if (model && !ids.includes(model)) {
+      return {
+        name: "llm",
+        ok: false,
+        detail: `lmstudio at ${baseUrl}: model '${model}' not loaded (available: ${ids.join(", ") || "none"})`,
+      };
+    }
+    return {
+      name: "llm",
+      ok: true,
+      detail: `lmstudio at ${baseUrl}${model ? ` (model ${model})` : ""} reachable`,
+    };
+  } catch (err) {
+    return { name: "llm", ok: false, detail: `GET ${baseUrl}/models failed: ${errString(err)}` };
+  }
+}
+
+/** Anthropic branch: cheapest possible messages call (max_tokens 1). */
+async function checkLlmAnthropic(
+  deps: DoctorDeps,
+  env: NodeJS.ProcessEnv,
+): Promise<DoctorCheck> {
   const key = env.ANTHROPIC_API_KEY;
   if (!key || key.trim() === "") {
-    return { name: "anthropic", ok: false, detail: "ANTHROPIC_API_KEY not set" };
+    return { name: "llm", ok: false, detail: "ANTHROPIC_API_KEY not set" };
   }
-  const makeAnthropic = deps.makeAnthropic ?? createAnthropicClient;
+  const makeAnthropic = deps.makeAnthropic ?? createAnthropicMessagesClient;
   try {
     const client = makeAnthropic(key);
     const res = await client.messages.create({
@@ -347,11 +427,11 @@ async function checkAnthropic(deps: DoctorDeps): Promise<DoctorCheck> {
       messages: [{ role: "user", content: "ping" }],
     });
     if (res && typeof res.id === "string") {
-      return { name: "anthropic", ok: true, detail: "1-token call succeeded" };
+      return { name: "llm", ok: true, detail: "anthropic 1-token call succeeded" };
     }
-    return { name: "anthropic", ok: false, detail: "malformed messages response" };
+    return { name: "llm", ok: false, detail: "malformed messages response" };
   } catch (err) {
-    return { name: "anthropic", ok: false, detail: `call failed: ${errString(err)}` };
+    return { name: "llm", ok: false, detail: `call failed: ${errString(err)}` };
   }
 }
 
@@ -367,7 +447,7 @@ export async function runDoctor(deps: DoctorDeps = {}): Promise<DoctorResult> {
     checkEnv(env),
     await checkSupabase(deps),
     await checkDiscord(deps),
-    await checkAnthropic(deps),
+    await checkLlm(deps),
   ];
   const failing = checks.filter((c) => !c.ok);
   return { exitCode: failing.length === 0 ? 0 : 1, checks };

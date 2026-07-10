@@ -56,7 +56,7 @@ async function runOneCrawl(trigger: "manual" | "loop" = "manual") {
     adapters: [greenhouseAdapter, leverAdapter],
     acquireLock: async () => noopLock,
     fetch: server.makeRoutingFetch(),
-    anthropic: server.makeFixtureAnthropic(),
+    llm: server.makeFixtureLlm(),
     webhookUrl: `${server.baseUrl}/discord/webhook`,
     notifyFetch: (input, init) =>
       globalThis.fetch(input as string, init),
@@ -140,14 +140,14 @@ describe("spec 09 — convergence (end-to-end win condition)", () => {
 
     // The scoring batch ran (a body carrying the serialized criteria JSON) and
     // the lever LLM difficulty fallback ran (a body carrying the rubric marker).
-    const anthropicBodies = server.anthropicPosts();
+    const llmBodies = server.llmPosts();
     // The scoring prompt embeds the serialized criteria JSON, which contains the
     // `notify_min_score` key; the difficulty fallback prompt carries the rubric
     // reference marker "Ulta Beauty".
-    const scored = anthropicBodies.some((b) =>
+    const scored = llmBodies.some((b) =>
       JSON.stringify(b).includes("notify_min_score"),
     );
-    const difficulty = anthropicBodies.some((b) =>
+    const difficulty = llmBodies.some((b) =>
       JSON.stringify(b).includes("Ulta Beauty"),
     );
     expect(scored).toBe(true);
@@ -278,12 +278,12 @@ describe("spec 09 — convergence (end-to-end win condition)", () => {
     const result = await runDoctor({
       env,
       makeDb: () => db,
+      // The lmstudio llm check GETs `${LMSTUDIO_BASE_URL}/models` on the fixture.
       fetchImpl: (input, init) => globalThis.fetch(input as string, init),
-      makeAnthropic: () => server.makeFixtureAnthropic(),
     });
     expect(result.exitCode).toBe(0);
     const names = result.checks.map((c) => c.name).sort();
-    expect(names).toEqual(["anthropic", "discord", "env", "supabase"]);
+    expect(names).toEqual(["discord", "env", "llm", "supabase"]);
     for (const c of result.checks) expect(c.ok).toBe(true);
   });
 
@@ -294,7 +294,6 @@ describe("spec 09 — convergence (end-to-end win condition)", () => {
       env,
       makeDb: () => db,
       fetchImpl: (input, init) => globalThis.fetch(input as string, init),
-      makeAnthropic: () => server.makeFixtureAnthropic(),
     });
     expect(result.exitCode).not.toBe(0);
     const joined = result.checks.map((c) => `${c.name}:${c.detail}`).join("\n");
@@ -317,11 +316,13 @@ async function jobId(source: string, externalId: string): Promise<string> {
   return r.rows[0].id as string;
 }
 
-/** The env a green doctor run sees in the fixture environment. */
+/** The env a green doctor run sees in the fixture environment (lmstudio provider). */
 function fixtureDoctorEnv(): NodeJS.ProcessEnv {
   return {
     SUPABASE_DB_URL: "postgres://fixture/db",
-    ANTHROPIC_API_KEY: "fixture-key",
+    LLM_PROVIDER: "lmstudio",
+    LMSTUDIO_BASE_URL: server.llmBaseUrl(),
+    LMSTUDIO_MODEL: server.llmModel(),
     DISCORD_WEBHOOK_URL: `${server.baseUrl}/discord/webhook`,
   };
 }

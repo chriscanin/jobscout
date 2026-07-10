@@ -24,7 +24,7 @@ import {
   type SourceAdapter,
 } from "@jobscout/core";
 import { runCrawl, type CrawlLock, type RunCrawlOptions } from "../src/pipeline.js";
-import type { MessageCreateParams, MessageResponse } from "../src/anthropic.js";
+import type { LlmClient, LlmRequest } from "../src/llm.js";
 
 let db: Db;
 let closeDb: () => Promise<void>;
@@ -76,51 +76,37 @@ function rawJob(source: RawJob["source"], overrides: Partial<RawJob> = {}): RawJ
 }
 
 /**
- * Mock Anthropic that scores every batch job 85 (react-native) and answers
- * difficulty `easy`. Optionally records a marker into a shared timeline when it
- * is first invoked, so ordering relative to the notifier can be asserted.
+ * Mock LLM that scores every batch job 85 (react-native) and answers difficulty
+ * `easy`. Optionally records a marker into a shared timeline when it is first
+ * invoked, so ordering relative to the notifier can be asserted.
  */
-function mockAnthropic(onCall?: () => void): {
-  messages: { create(p: MessageCreateParams): Promise<MessageResponse> };
-  calls: MessageCreateParams[];
-} {
-  const calls: MessageCreateParams[] = [];
+function mockLlm(onCall?: () => void): LlmClient & { calls: LlmRequest[] } {
+  const calls: LlmRequest[] = [];
   return {
     calls,
-    messages: {
-      async create(params: MessageCreateParams): Promise<MessageResponse> {
-        onCall?.();
-        calls.push(params);
-        const prompt = String(params.messages[0]?.content ?? "");
-        let text: string;
-        if (prompt.includes("JSON array")) {
-          const jobsJson = prompt.match(/JOBS \(JSON\):\n(\[[\s\S]*?\])\n/);
-          const ids: string[] = jobsJson
-            ? (JSON.parse(jobsJson[1]) as Array<{ id: string }>).map((j) => j.id)
-            : [];
-          text = JSON.stringify(
-            ids.map((id) => ({
-              id,
-              role_category: "react-native",
-              match_score: 85,
-              match_reasons: ["react native match"],
-            })),
-          );
-        } else {
-          text = JSON.stringify({
-            difficulty: "easy",
-            difficulty_reasons: ["apply in place, standard fields"],
-          });
-        }
-        return {
-          id: "msg_test",
-          model: params.model,
-          role: "assistant",
-          content: [{ type: "text", text }],
-          stop_reason: "end_turn",
-          usage: { input_tokens: 1, output_tokens: 1 },
-        };
-      },
+    label: "mock:llm",
+    async complete(req: LlmRequest): Promise<string> {
+      onCall?.();
+      calls.push(req);
+      const prompt = req.user;
+      if (prompt.includes("JSON array")) {
+        const jobsJson = prompt.match(/JOBS \(JSON\):\n(\[[\s\S]*?\])\n/);
+        const ids: string[] = jobsJson
+          ? (JSON.parse(jobsJson[1]) as Array<{ id: string }>).map((j) => j.id)
+          : [];
+        return JSON.stringify(
+          ids.map((id) => ({
+            id,
+            role_category: "react-native",
+            match_score: 85,
+            match_reasons: ["react native match"],
+          })),
+        );
+      }
+      return JSON.stringify({
+        difficulty: "easy",
+        difficulty_reasons: ["apply in place, standard fields"],
+      });
     },
   };
 }
@@ -158,7 +144,7 @@ function baseOpts(over: Partial<RunCrawlOptions> = {}): RunCrawlOptions {
   return {
     trigger: "manual",
     acquireLock: grantLock(),
-    anthropic: mockAnthropic(),
+    llm: mockLlm(),
     fetch: instantFetch(),
     webhookUrl: "https://discord.test/webhook",
     notifyFetch: mockDiscord().fetchImpl,
@@ -174,14 +160,14 @@ function baseOpts(over: Partial<RunCrawlOptions> = {}): RunCrawlOptions {
 describe("pipeline order — classify precedes notify", () => {
   it("scores each job before the notifier posts (timeline: classify before notify)", async () => {
     const timeline: string[] = [];
-    const anthropic = mockAnthropic(() => timeline.push("classify"));
+    const llm = mockLlm(() => timeline.push("classify"));
     const discord = mockDiscord(() => timeline.push("notify"));
 
     const summary = await runCrawl(
       db,
       baseOpts({
         adapters: [stubAdapter("greenhouse", [rawJob("greenhouse")])],
-        anthropic,
+        llm,
         notifyFetch: discord.fetchImpl,
       }),
     );

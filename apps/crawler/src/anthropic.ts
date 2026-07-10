@@ -1,12 +1,25 @@
 /**
- * Thin injectable Anthropic client wrapper.
+ * Anthropic provider — the OPTIONAL fallback for the provider-neutral LLM layer.
  *
- * Lanes 04 (discovery) and 05 (classifier) will inject fakes in tests.
- * No prompt logic lives here — that belongs in classifier.ts / discovery.ts.
+ * The crawler classifies with a LOCAL LM Studio model by default (see ./llm.ts).
+ * When `LLM_PROVIDER=anthropic`, `createAnthropicClient()` returns an
+ * {@link LlmClient} that maps tiers onto the Messages API:
+ *   - tier "default" -> claude-haiku-4-5
+ *   - tier "strong"  -> claude-sonnet-4-6
  *
- * CONTRACT §Stack: Anthropic API for classification (claude-haiku-4-5 default,
- * claude-sonnet-4-6 for ambiguous cases) and web-search-based discovery.
+ * The raw Messages client (`AnthropicLike` / `createAnthropicMessagesClient`) is
+ * still exported for the web-search discovery path (spec 04), which uses the
+ * Anthropic-hosted `web_search` tool and cannot run on a local model.
+ *
+ * CONTRACT §Stack: claude-haiku-4-5 default, claude-sonnet-4-6 for ambiguous
+ * cases; web-search-based discovery.
  */
+
+import type { LlmClient, LlmRequest } from "./llm.js";
+
+/** Fixed model IDs (CONTRACT §Stack — exactly these strings). */
+const HAIKU_MODEL = "claude-haiku-4-5";
+const SONNET_MODEL = "claude-sonnet-4-6";
 
 /**
  * Minimal subset of the Anthropic messages.create parameters that this project
@@ -46,8 +59,9 @@ export interface MessageResponse {
 }
 
 /**
- * Injectable interface for the Anthropic client used by this project.
- * Lanes 04/05 inject a fake that satisfies this interface.
+ * Injectable interface for the raw Anthropic Messages client. The web-search
+ * discovery path (spec 04) uses this directly; classification goes through the
+ * provider-neutral {@link LlmClient} instead.
  */
 export interface AnthropicLike {
   messages: {
@@ -56,12 +70,12 @@ export interface AnthropicLike {
 }
 
 /**
- * Build the real Anthropic client lazily (imported only when actually called,
- * so tests that inject a fake never touch the SDK or the network).
+ * Build the raw Anthropic Messages client lazily (the SDK is imported only when
+ * actually called, so tests that inject a fake never touch it or the network).
  *
  * @param apiKey Defaults to process.env.ANTHROPIC_API_KEY.
  */
-export function createAnthropicClient(
+export function createAnthropicMessagesClient(
   apiKey: string = process.env.ANTHROPIC_API_KEY ?? "",
 ): AnthropicLike {
   let client: AnthropicLike | null = null;
@@ -80,6 +94,49 @@ export function createAnthropicClient(
         const c = await getClient();
         return c.messages.create(params);
       },
+    },
+  };
+}
+
+/** Concatenate the text of a Messages API response's content blocks. */
+function responseText(res: MessageResponse): string {
+  return res.content
+    .filter((b) => b.type === "text" && typeof b.text === "string")
+    .map((b) => b.text as string)
+    .join("");
+}
+
+/**
+ * The Anthropic-backed {@link LlmClient}. `complete` translates a provider-
+ * neutral request to the Messages API (system + single user message), picks the
+ * model from `tier`, and returns the first content block's text.
+ *
+ * A `jsonSchema` is honoured by appending an instruction to the prompt asking
+ * for a raw JSON value matching that schema; the classifier already parses JSON
+ * out of the returned text tolerantly, so no tool round-trip is needed here.
+ *
+ * The underlying Messages client is injectable so tests stay offline.
+ */
+export function createAnthropicClient(
+  apiKey: string = process.env.ANTHROPIC_API_KEY ?? "",
+  messagesClient: AnthropicLike = createAnthropicMessagesClient(apiKey),
+): LlmClient {
+  return {
+    label: `anthropic:${HAIKU_MODEL}`,
+    async complete(req: LlmRequest): Promise<string> {
+      const model = req.tier === "strong" ? SONNET_MODEL : HAIKU_MODEL;
+      const user = req.jsonSchema
+        ? `${req.user}\n\nReturn ONLY a JSON value matching this JSON Schema:\n${JSON.stringify(
+            req.jsonSchema,
+          )}`
+        : req.user;
+      const res = await messagesClient.messages.create({
+        model,
+        max_tokens: req.maxTokens ?? 2048,
+        ...(req.system ? { system: req.system } : {}),
+        messages: [{ role: "user", content: user }],
+      });
+      return responseText(res);
     },
   };
 }

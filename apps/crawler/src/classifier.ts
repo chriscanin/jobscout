@@ -4,19 +4,20 @@
  * Two seams, both cheap-first:
  *
  *   A) scoreMatch — deterministic prescreen (no I/O), then batched
- *      `claude-haiku-4-5` scoring, then a single `claude-sonnet-4-6` re-score
- *      for any job whose haiku score lands in the ambiguous 40–70 band.
+ *      default-tier scoring, then a single strong-tier re-score for any job
+ *      whose default-tier score lands in the ambiguous 40–70 band.
  *
  *   B) rankDifficulty — fixed order: (1) Greenhouse standard-questions rule
  *      (deterministic), (2) HARD_ATS_DOMAINS host rule (deterministic, no
- *      fetch), (3) LLM fallback that fetches the apply page and asks
- *      `claude-haiku-4-5` to classify per the CONTRACT rubric.
+ *      fetch), (3) LLM fallback that fetches the apply page and asks the
+ *      default-tier model to classify per the CONTRACT rubric.
  *
- * The Anthropic client and the page-fetch helper are injected via
- * `ClassifierDeps`, so every test runs against mocks with no network. An
- * Anthropic or fetch error is caught per unit of work and collected in
- * `errors` — it never throws out of the classify step, so the affected jobs
- * simply stay unclassified and are retried next run.
+ * The LLM client and the page-fetch helper are injected via `ClassifierDeps`,
+ * so every test runs against mocks with no network. The LLM is provider-neutral
+ * (`LlmClient`): a LOCAL LM Studio model by default, Anthropic optional. An LLM
+ * or fetch error is caught per unit of work and collected in `errors` — it never
+ * throws out of the classify step, so the affected jobs simply stay unclassified
+ * and are retried next run.
  *
  * CONTRACT §Difficulty rubric, §Matching criteria; spec 05 §2.
  */
@@ -30,17 +31,20 @@ import {
   type Job,
   type RoleCategory,
 } from "@jobscout/core";
-import type { AnthropicLike, MessageResponse } from "./anthropic.js";
+import type { LlmClient } from "./llm.js";
 
-/** Fixed model IDs (CONTRACT §Stack; spec 05 §2 — exactly these strings). */
-const HAIKU_MODEL = "claude-haiku-4-5";
-const SONNET_MODEL = "claude-sonnet-4-6";
+/**
+ * At most this many jobs per scoring request (spec 05 §2). Kept small so the
+ * whole prompt fits a local model's context window; the batch-of-N -> one call
+ * behavior is unchanged.
+ */
+const MAX_BATCH = 8;
 
-/** At most this many jobs per haiku scoring request (spec 05 §2). */
-const MAX_BATCH = 20;
-
-/** Job description slice sent to the scorer (spec 05 §2). */
-const SCORE_DESC_CHARS = 2_000;
+/**
+ * Job description slice sent to the scorer. Truncated harder than the cloud
+ * default so the batched prompt fits a local model's context window.
+ */
+const SCORE_DESC_CHARS = 1_500;
 
 /** Ambiguous band re-scored once by sonnet, inclusive (spec 05 §2). */
 const RESCORE_LOW = 40;
@@ -63,11 +67,50 @@ export interface DifficultyOutcome {
 
 /** Injected dependencies (spec 05 interface). Mocked in every test. */
 export interface ClassifierDeps {
-  /** Injected Anthropic client; only `messages` is used. */
-  anthropic: AnthropicLike;
+  /** Injected provider-neutral LLM client (LM Studio by default). */
+  llm: LlmClient;
   /** `CrawlCtx` fetch helper (politeness built in) returning page HTML. */
   fetchHtml: (url: string) => Promise<string>;
 }
+
+/**
+ * JSON Schema for one scored job in the batch result. Passed to the provider so
+ * a local model returns strict JSON (LM Studio structured output). Keyed by the
+ * job `id` embedded in the prompt.
+ */
+const SCORE_ITEM_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    id: { type: "string" },
+    role_category: {
+      type: "string",
+      enum: ["react-native", "react", "frontend", "fullstack", "other"],
+    },
+    match_score: { type: "integer" },
+    match_reasons: { type: "array", items: { type: "string" } },
+  },
+  required: ["id", "role_category", "match_score", "match_reasons"],
+} as const;
+
+/** JSON Schema for the whole scoring-batch result (an array of scored jobs). */
+const SCORE_BATCH_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: { results: { type: "array", items: SCORE_ITEM_SCHEMA } },
+  required: ["results"],
+} as const;
+
+/** JSON Schema for the difficulty-fallback result. */
+const DIFFICULTY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+    difficulty_reasons: { type: "array", items: { type: "string" } },
+  },
+  required: ["difficulty", "difficulty_reasons"],
+} as const;
 
 const ROLE_CATEGORIES: readonly RoleCategory[] = [
   "react-native",
@@ -147,14 +190,6 @@ function clampReasons(value: unknown): string[] {
   return arr.length === 0 ? ["classified"] : arr.slice(0, 3);
 }
 
-/** Concatenate the text blocks of a Messages API response. */
-function responseText(res: MessageResponse): string {
-  return res.content
-    .filter((b) => b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text as string)
-    .join("");
-}
-
 /**
  * Extract the first JSON value (array or object) from model text, tolerating
  * ```json fences or surrounding prose.
@@ -209,18 +244,23 @@ function buildScorePrompt(jobs: Job[], criteria: Criteria): string {
 async function scoreBatch(
   jobs: Job[],
   criteria: Criteria,
-  model: string,
+  tier: "default" | "strong",
   deps: ClassifierDeps,
 ): Promise<Map<string, RawScore>> {
-  const res = await deps.anthropic.messages.create({
-    model,
-    max_tokens: 2048,
-    messages: [
-      { role: "user", content: buildScorePrompt(jobs, criteria) },
-    ],
+  const text = await deps.llm.complete({
+    user: buildScorePrompt(jobs, criteria),
+    tier,
+    maxTokens: 2048,
+    jsonSchema: SCORE_BATCH_SCHEMA,
   });
-  const parsed = parseJson(responseText(res));
-  const rows: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+  const parsed = parseJson(text);
+  // The model may return a bare array or a { results: [...] } object (the shape
+  // the json_schema asks for). Normalize both to a flat list of rows.
+  const rows: unknown[] = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object" && Array.isArray((parsed as { results?: unknown }).results)
+      ? ((parsed as { results: unknown[] }).results)
+      : [parsed];
   const byId = new Map<string, RawScore>();
   for (const row of rows) {
     const r = row as Partial<RawScore>;
@@ -274,7 +314,7 @@ export async function scoreMatch(
   for (let i = 0; i < survivors.length; i += MAX_BATCH) {
     const batch = survivors.slice(i, i + MAX_BATCH);
     try {
-      const byId = await scoreBatch(batch, criteria, HAIKU_MODEL, deps);
+      const byId = await scoreBatch(batch, criteria, "default", deps);
       for (const job of batch) {
         const r = byId.get(job.id);
         if (r) {
@@ -286,7 +326,7 @@ export async function scoreMatch(
       }
     } catch (err) {
       // Whole batch failed — leave these jobs unscored, record one error.
-      errors.push(`scoreMatch: haiku batch failed: ${errString(err)}`);
+      errors.push(`scoreMatch: scoring batch failed: ${errString(err)}`);
     }
   }
 
@@ -298,10 +338,10 @@ export async function scoreMatch(
   const sonnetById = new Map<string, RawScore>();
   if (ambiguous.length > 0) {
     try {
-      const byId = await scoreBatch(ambiguous, criteria, SONNET_MODEL, deps);
+      const byId = await scoreBatch(ambiguous, criteria, "strong", deps);
       for (const [id, r] of byId) sonnetById.set(id, r);
     } catch (err) {
-      errors.push(`scoreMatch: sonnet re-score failed: ${errString(err)}`);
+      errors.push(`scoreMatch: strong-tier re-score failed: ${errString(err)}`);
     }
   }
 
@@ -451,8 +491,8 @@ function buildDifficultyPrompt(job: Job, html: string): string {
 }
 
 /**
- * LLM fallback (spec 05 §2, step 3). Fetch the apply page and ask
- * `claude-haiku-4-5` to classify. Throws on fetch/model error so the caller
+ * LLM fallback (spec 05 §2, step 3). Fetch the apply page and ask the
+ * default-tier model to classify. Throws on fetch/model error so the caller
  * records the error and leaves the job unclassified.
  */
 async function difficultyFallback(
@@ -460,14 +500,13 @@ async function difficultyFallback(
   deps: ClassifierDeps,
 ): Promise<DifficultyOutcome> {
   const html = await deps.fetchHtml(job.apply_url as string);
-  const res = await deps.anthropic.messages.create({
-    model: HAIKU_MODEL,
-    max_tokens: 512,
-    messages: [
-      { role: "user", content: buildDifficultyPrompt(job, html) },
-    ],
+  const text = await deps.llm.complete({
+    user: buildDifficultyPrompt(job, html),
+    tier: "default",
+    maxTokens: 512,
+    jsonSchema: DIFFICULTY_SCHEMA,
   });
-  const parsed = parseJson(responseText(res)) as {
+  const parsed = parseJson(text) as {
     difficulty?: unknown;
     difficulty_reasons?: unknown;
   };
