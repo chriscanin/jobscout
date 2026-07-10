@@ -36,6 +36,17 @@ export function isAllowedTransition(from: Status, to: Status): boolean {
   return ALLOWED_TRANSITIONS.some(([f, t]) => f === from && t === to);
 }
 
+/**
+ * Pure guard: throws `InvalidTransitionError` if the transition is not allowed.
+ * Same rules as `isAllowedTransition` — no DB access, fully synchronous.
+ * Used by server actions to re-check before writing, and in unit tests.
+ */
+export function assertTransition(from: Status, to: Status): void {
+  if (!isAllowedTransition(from, to)) {
+    throw new InvalidTransitionError(from, to);
+  }
+}
+
 /** Thrown when a status transition is not permitted by the status machine. */
 export class InvalidTransitionError extends Error {
   readonly from: Status;

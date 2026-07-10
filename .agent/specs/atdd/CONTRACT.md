@@ -27,7 +27,7 @@ Development and initial operation happen on Chris's main Mac. When stable, the c
 ## Environment variables
 
 - Crawler (`apps/crawler/.env`): `SUPABASE_DB_URL` (direct/session-mode Postgres connection string), `ANTHROPIC_API_KEY`, `DISCORD_WEBHOOK_URL`
-- Admin (Vercel env): `SUPABASE_DB_URL` (transaction-pooler string is fine here), `AUTH0_SECRET`, `AUTH0_BASE_URL`, `AUTH0_ISSUER_BASE_URL`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `ADMIN_ALLOWED_EMAILS` (comma-separated)
+- Admin (Vercel env): `SUPABASE_DB_URL` (transaction-pooler string is fine here), `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, `APP_BASE_URL`, `ADMIN_ALLOWED_EMAILS` (comma-separated) — these are the **@auth0/nextjs-auth0 v4** names; v3 used `AUTH0_BASE_URL` and `AUTH0_ISSUER_BASE_URL` which are no longer correct.
 - Tests: none required — PGlite runs in-process.
 - Supersession note: earlier specs mention `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`; those are replaced by `SUPABASE_DB_URL`. The security rule they state still holds verbatim: no server secret (the DB URL, Auth0 secrets) may ever reach the client bundle, and there are no `NEXT_PUBLIC_` database vars.
 

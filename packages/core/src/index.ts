@@ -6,3 +6,4 @@ export * from "./constants.js";
 export * from "./adapter.js";
 export * from "./db.js";
 export * from "./data.js";
+export * from "./queries.js";
