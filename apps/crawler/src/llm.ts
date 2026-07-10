@@ -56,10 +56,15 @@ export interface LmStudioOptions {
   model?: string;
   /** Injectable fetch (defaults to global fetch); tests inject a fake. */
   fetch?: FetchLike;
+  /** Per-request timeout in ms (default 120s) so a stuck generation can't hang a run. */
+  timeoutMs?: number;
 }
 
 /** Default max tokens when a request does not set `maxTokens`. */
 const DEFAULT_MAX_TOKENS = 2048;
+
+/** Default per-request timeout (ms). A hung local generation aborts, not hangs. */
+const DEFAULT_TIMEOUT_MS = 120_000;
 
 /** The OpenAI chat-completions response shape we read. */
 interface ChatCompletionResponse {
@@ -80,6 +85,7 @@ export function createLmStudioClient(opts: LmStudioOptions = {}): LlmClient {
   const model =
     opts.model ?? process.env.LMSTUDIO_MODEL ?? "qwen2.5-32b-instruct";
   const fetchImpl = opts.fetch ?? (globalThis.fetch as unknown as FetchLike);
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   return {
     label: `lmstudio:${model}`,
@@ -102,11 +108,21 @@ export function createLmStudioClient(opts: LmStudioOptions = {}): LlmClient {
         };
       }
 
-      const res = await fetchImpl(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      // Abort a stuck generation after timeoutMs so one bad request can't hang
+      // an unattended run. The injected test fetch simply ignores the signal.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let res: Awaited<ReturnType<FetchLike>>;
+      try {
+        res = await fetchImpl(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
       if (!res.ok) {
         throw new Error(`lmstudio: HTTP ${res.status}`);
       }

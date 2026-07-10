@@ -142,7 +142,6 @@ export function prescreen(
   criteria: Criteria,
 ): { excluded: true; reason: string } | { excluded: false } {
   const title = (job.title ?? "").toLowerCase();
-  const haystack = `${title} ${(job.description ?? "").toLowerCase()}`;
 
   // Exclude if any exclude keyword appears in the TITLE (spec 05 §2).
   for (const kw of criteria.exclude_keywords) {
@@ -151,9 +150,13 @@ export function prescreen(
     }
   }
 
-  // Exclude if no role-priority keyword appears anywhere in title+description.
+  // Exclude unless a role-priority keyword appears in the TITLE. Title-only is
+  // deliberate: job descriptions mention "react"/"frontend"/"full stack"
+  // constantly, so matching on the description floods the scorer with thousands
+  // of non-frontend roles at real board scale. The title is the reliable role
+  // signal for a job search.
   const anyKeyword = criteria.role_priorities.some((rp) =>
-    rp.keywords.some((kw) => haystack.includes(kw.toLowerCase())),
+    rp.keywords.some((kw) => title.includes(kw.toLowerCase())),
   );
   if (!anyKeyword) {
     return { excluded: true, reason: "prescreen:no-keyword-match" };
@@ -336,9 +339,10 @@ export async function scoreMatch(
     return s >= RESCORE_LOW && s <= RESCORE_HIGH;
   });
   const sonnetById = new Map<string, RawScore>();
-  if (ambiguous.length > 0) {
+  for (let i = 0; i < ambiguous.length; i += MAX_BATCH) {
+    const batch = ambiguous.slice(i, i + MAX_BATCH);
     try {
-      const byId = await scoreBatch(ambiguous, criteria, "strong", deps);
+      const byId = await scoreBatch(batch, criteria, "strong", deps);
       for (const [id, r] of byId) sonnetById.set(id, r);
     } catch (err) {
       errors.push(`scoreMatch: strong-tier re-score failed: ${errString(err)}`);

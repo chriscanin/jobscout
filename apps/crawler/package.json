@@ -10,6 +10,7 @@
     "loop": "tsx src/cli.ts loop",
     "discover": "tsx src/cli.ts discover",
     "doctor": "tsx src/cli.ts doctor",
+    "classify": "tsx src/classify.ts",
     "db:push": "tsx src/db-push.ts",
     "e2e": "vitest run test/e2e"
   },
