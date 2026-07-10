@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  jobscout crawl LaunchAgent (spec 07 §3; CONTRACT §Portability).
+
+  This file is the TEMPLATE. ops/install-launchd.sh substitutes the two
+  __PLACEHOLDER__ tokens for the current machine and copies the result to
+  ~/Library/LaunchAgents/com.jobscout.crawl.plist. The placeholders are valid
+  values (an absolute path and a HOME path) so `plutil -lint` passes on this
+  template BEFORE substitution as well as after.
+
+  - __RUN_CRAWL_SH__  -> absolute path to ops/run-crawl.sh on this machine
+  - __HOME__          -> the installing user's $HOME (for the log paths)
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jobscout.crawl</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__RUN_CRAWL_SH__</string>
+    <string>--trigger</string>
+    <string>launchd</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>10800</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/jobscout/crawl.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/jobscout/crawl.err.log</string>
+</dict>
+</plist>

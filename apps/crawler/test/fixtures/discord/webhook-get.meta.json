@@ -1,0 +1,4 @@
+{
+  "state": "representative",
+  "provenance": "Discord webhook metadata returned by GET https://discord.com/api/webhooks/{id}/{token}. DISCORD_WEBHOOK_URL is not configured in this environment, so this fixture is synthesized from the documented GET-webhook response shape (id + token present, type 1 = Incoming Webhook) rather than captured from a live call. doctor's discord check reads `id` and `token` off this payload and issues NO POST. See https://discord.com/developers/docs/resources/webhook#get-webhook-with-token."
+}

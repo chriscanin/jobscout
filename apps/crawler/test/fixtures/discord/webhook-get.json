@@ -1,0 +1,11 @@
+{
+  "type": 1,
+  "id": "1234567890123456789",
+  "name": "jobscout",
+  "avatar": null,
+  "channel_id": "9876543210987654321",
+  "guild_id": "1122334455667788990",
+  "application_id": null,
+  "token": "aWxsdXN0cmF0aXZlLXdlYmhvb2stdG9rZW4tbm90LWEtcmVhbC1zZWNyZXQ",
+  "url": "https://discord.com/api/webhooks/1234567890123456789/aWxsdXN0cmF0aXZlLXdlYmhvb2stdG9rZW4tbm90LWEtcmVhbC1zZWNyZXQ"
+}

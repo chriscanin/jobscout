@@ -1,0 +1,4 @@
+{
+  "state": "representative",
+  "provenance": "Minimal Messages API response for the cheapest possible call: model claude-haiku-4-5, max_tokens 1. ANTHROPIC_API_KEY is not set in this environment, so this envelope is synthesized from the documented Messages API response shape (id, model, role assistant, single text content block, stop_reason max_tokens, usage) rather than captured live. doctor's anthropic check only asserts the call succeeds (a well-formed MessageResponse), not the text content. See https://docs.anthropic.com/en/api/messages."
+}
