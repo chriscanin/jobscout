@@ -1,6 +1,29 @@
 # jobscout
 
-Personal AI job search engine: crawls job boards on a schedule, ranks jobs by application difficulty (easy / medium / hard), stores them in Supabase, notifies Discord, and provides an Auth0-gated admin app. No auto-apply.
+Personal AI job search engine: crawls job boards on a schedule, ranks jobs by application difficulty (easy / medium / hard), stores them in Supabase, notifies Discord, and hosts an Auth0-gated web job board (`apps/admin`). No auto-apply.
+
+**Job sources** (the 3-hourly crawl): company boards on six ATS APIs
+(Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee) plus four
+search-style feeds — the monthly HN "Who is hiring?" thread (Algolia API),
+RemoteOK, Remotive, and We Work Remotely. Matching is title-keyword prescreen
+→ LLM scoring, mobile-first: the priority-1 group covers react native /
+expo / mobile / ios / android / swift / kotlin / flutter, with react/frontend
+at priority 2 and fullstack at 3.
+
+Beyond the seeded boards, fifteen **curated startup-intel sources** feed the
+company list (`jobscout sources`, daily via launchd): the YC startup directory
+(hiring companies, via the yc-oss mirror), Ramp's monthly vendor reports (via
+the Ramp Economics Lab Substack), Harmonic's quarterly Hot 25, the a16z Build /
+Founders You Should Know / Next Play / Early Days / Pragmatic Engineer
+newsletters, the a16z / Sequoia / Index / Founders Fund portfolio pages
+(deterministic extractors over their embedded data where available), TechCrunch
+venture news, Product Hunt launches, and the annual startup lists (Forbes
+AI 50, LinkedIn Top Startups, Enterprise Tech 30). Each run parses new items
+only, extracts the featured company names (structured parse or LLM), resolves
+each to a live board on any of the six ATSes (near-exact slug probe, then web
+search), and inserts new `companies` rows — the regular crawl picks up their
+postings from there. The web app's `/sources` page shows per-source counts and
+every tracked company.
 
 - **Plan / spec index:** [SPEC.md](SPEC.md)
 - **Canonical contract:** [.agent/specs/atdd/CONTRACT.md](.agent/specs/atdd/CONTRACT.md)
@@ -82,9 +105,12 @@ real values as you go.
    ops/install-launchd.sh
    ```
    This resolves the project dir + Node 22 bin for this machine, installs
-   `com.jobscout.crawl.plist` into `~/Library/LaunchAgents/`, and loads it. The
-   crawl then fires at load and every 3 hours; logs go to
-   `~/Library/Logs/jobscout/`. Uninstall with `ops/uninstall-launchd.sh`.
+   `com.jobscout.crawl.plist` AND `com.jobscout.sources.plist` into
+   `~/Library/LaunchAgents/`, and loads them. The crawl fires at load and every
+   12 hours (twice a day); the curated-sources tracker fires at load and once a day; logs go to
+   `~/Library/Logs/jobscout/`. Uninstall both with `ops/uninstall-launchd.sh`.
+   One-off runs: `pnpm -C apps/crawler sources` (optionally
+   `-- --source yc-directory next-play` to limit).
 
 10. **Later: move to the dedicated Mac.** All state lives in Supabase, so the
     crawler machine is disposable. On the new Mac: clone the repo, copy

@@ -15,81 +15,101 @@ export default async function RunsPage() {
 
   return (
     <div>
-      <h1>Crawl Runs</h1>
-      {runs.length === 0 && <p>No crawl runs yet.</p>}
-      {runs.map((run) => {
-        const stats =
-          run.stats != null && typeof run.stats === "object"
-            ? (run.stats as Record<
-                string,
-                { fetched: number; new: number; updated: number; errors: string[] }
-              >)
-            : {};
+      <section className="rise">
+        <p className="kicker">The wire log</p>
+        <h1>Crawl runs</h1>
+        <p className="lede">
+          Every cycle, newest first — per-source fetch stats and errors, so a
+          broken source is visible without ssh.
+        </p>
+      </section>
 
-        return (
-          <details key={run.id} style={{ marginBottom: "1rem" }}>
-            <summary>
-              {run.started_at
-                ? new Date(run.started_at).toLocaleString()
-                : "unknown"}{" "}
-              — {run.trigger} —{" "}
-              <strong style={{ color: run.ok ? "green" : "red" }}>
-                {run.ok ? "OK" : "FAILED"}
-              </strong>{" "}
-              (notified: {run.notified_count ?? 0})
-            </summary>
-            <table
-              border={1}
-              cellPadding={4}
-              style={{ borderCollapse: "collapse", marginTop: "0.5rem" }}
-            >
-              <thead>
-                <tr>
-                  <th>Source</th>
-                  <th>Fetched</th>
-                  <th>New</th>
-                  <th>Updated</th>
-                  <th>Errors</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(stats).map(([src, s]) => (
-                  <tr key={src}>
-                    <td>{src}</td>
-                    <td>{s.fetched}</td>
-                    <td>{s.new}</td>
-                    <td>{s.updated}</td>
-                    <td>
-                      {s.errors && s.errors.length > 0 ? (
-                        <ul style={{ margin: 0, paddingLeft: "1em" }}>
-                          {s.errors.map((e, i) => (
-                            <li key={i} style={{ color: "red" }}>
-                              {e}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        "—"
+      <section className="section rise">
+        {runs.length === 0 && (
+          <div className="ledger-wrap">
+            <p className="empty">No crawl runs yet.</p>
+          </div>
+        )}
+        {runs.map((run) => {
+          const stats =
+            run.stats != null && typeof run.stats === "object"
+              ? (run.stats as Record<
+                  string,
+                  { fetched: number; new: number; updated: number; errors: string[] }
+                >)
+              : {};
+
+          return (
+            <details key={run.id} className="run">
+              <summary>
+                <span>
+                  {run.started_at
+                    ? new Date(run.started_at).toLocaleString()
+                    : "unknown"}
+                </span>
+                <span className="chip chip-unknown">{run.trigger}</span>
+                <span className={run.ok ? "ok-yes" : "ok-no"}>
+                  {run.ok ? "OK" : "FAILED"}
+                </span>
+                <span style={{ color: "var(--ink-soft)" }}>
+                  notified {run.notified_count ?? 0}
+                </span>
+              </summary>
+              <div className="run-body">
+                <div className="ledger-wrap" style={{ boxShadow: "none" }}>
+                  <table className="ledger">
+                    <thead>
+                      <tr>
+                        <th>Source</th>
+                        <th className="num">Fetched</th>
+                        <th className="num">New</th>
+                        <th className="num">Updated</th>
+                        <th>Errors</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(stats).map(([src, s]) => (
+                        <tr key={src}>
+                          <td>{src}</td>
+                          <td className="num">{s.fetched}</td>
+                          <td className="num">{s.new}</td>
+                          <td className="num">{s.updated}</td>
+                          <td>
+                            {s.errors && s.errors.length > 0 ? (
+                              <ul style={{ margin: 0, paddingLeft: "1em" }}>
+                                {s.errors.map((e, i) => (
+                                  <li key={i} className="error-text">
+                                    {e}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {Object.keys(stats).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="muted">
+                            No stats recorded.
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))}
-                {Object.keys(stats).length === 0 && (
-                  <tr>
-                    <td colSpan={5}>No stats recorded.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            <p style={{ fontSize: "0.85em", color: "#666" }}>
-              Finished:{" "}
-              {run.finished_at
-                ? new Date(run.finished_at).toLocaleString()
-                : "—"}
-            </p>
-          </details>
-        );
-      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--ink-soft)", marginTop: "0.5rem" }}>
+                  Finished:{" "}
+                  {run.finished_at
+                    ? new Date(run.finished_at).toLocaleString()
+                    : "—"}
+                </p>
+              </div>
+            </details>
+          );
+        })}
+      </section>
     </div>
   );
 }

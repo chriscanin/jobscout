@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  jobscout curated-sources LaunchAgent (see com.jobscout.crawl.plist for the
+  template pattern). Installed by ops/install-launchd.sh, which substitutes:
+
+  - __RUN_SOURCES_SH__ -> absolute path to ops/run-sources.sh on this machine
+  - __HOME__           -> the installing user's $HOME (for the log paths)
+
+  Runs once a day: the sources are newsletters / quarterly lists / a
+  daily-updated directory mirror, so anything faster is wasted work.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jobscout.sources</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__RUN_SOURCES_SH__</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>86400</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/jobscout/sources.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/jobscout/sources.err.log</string>
+</dict>
+</plist>

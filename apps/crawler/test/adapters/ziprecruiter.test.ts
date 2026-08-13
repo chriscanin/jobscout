@@ -31,7 +31,7 @@ vi.stubGlobal("fetch", () => {
 
 // The initial search URL the ZipRecruiter adapter builds with DEFAULT_CRITERIA keywords
 const SEARCH_URL =
-  "https://www.ziprecruiter.com/jobs-search?search=react+native+mobile+developer+mobile+engineer+expo+ios+engineer+android+engineer+react+developer+react+engineer+react.js+frontend+front-end+front+end+ui+engineer+web+developer+full+stack+fullstack+full-stack&location=Remote";
+  "https://www.ziprecruiter.com/jobs-search?search=react+native+react-native+expo+mobile+ios+android+swift+kotlin+flutter+react+developer+react+engineer+react.js+frontend+front-end+front+end+ui+engineer+web+developer+full+stack+fullstack+full-stack&location=Remote";
 
 // ---------------------------------------------------------------------------
 // Z1 — Happy path: external_id from listing id in URL

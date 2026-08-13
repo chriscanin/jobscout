@@ -7,16 +7,16 @@
 # Usage:  ops/uninstall-launchd.sh
 set -euo pipefail
 
-LABEL="com.jobscout.crawl"
-INSTALLED_PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-
-if [ -f "$INSTALLED_PLIST" ]; then
-  # Unload from launchd (ignore "not loaded" errors), then remove the copy.
-  launchctl unload "$INSTALLED_PLIST" 2>/dev/null || true
-  rm -f "$INSTALLED_PLIST"
-  echo "jobscout: LaunchAgent unloaded and removed ($INSTALLED_PLIST)"
-else
-  echo "jobscout: no LaunchAgent installed at $INSTALLED_PLIST (nothing to do)"
-fi
+for LABEL in "com.jobscout.crawl" "com.jobscout.sources"; do
+  INSTALLED_PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+  if [ -f "$INSTALLED_PLIST" ]; then
+    # Unload from launchd (ignore "not loaded" errors), then remove the copy.
+    launchctl unload "$INSTALLED_PLIST" 2>/dev/null || true
+    rm -f "$INSTALLED_PLIST"
+    echo "jobscout: LaunchAgent unloaded and removed ($INSTALLED_PLIST)"
+  else
+    echo "jobscout: no LaunchAgent installed at $INSTALLED_PLIST (nothing to do)"
+  fi
+done
 
 echo "jobscout: all state lives in Supabase; nothing else to migrate."

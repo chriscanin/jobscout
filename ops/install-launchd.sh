@@ -23,39 +23,45 @@ else
   NODE_BIN="$HOME/.nvm/versions/node/v22.21.1/bin"
 fi
 
-LABEL="com.jobscout.crawl"
 LOG_DIR="$HOME/Library/Logs/jobscout"
 LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
-INSTALLED_PLIST="$LAUNCH_AGENTS_DIR/$LABEL.plist"
 RUN_CRAWL_SH="$OPS_DIR/run-crawl.sh"
+RUN_SOURCES_SH="$OPS_DIR/run-sources.sh"
 
-echo "jobscout: installing LaunchAgent"
+echo "jobscout: installing LaunchAgents"
 echo "  project dir : $PROJECT_DIR"
 echo "  node bin    : $NODE_BIN"
 echo "  log dir     : $LOG_DIR"
 
-# The wrapper self-resolves the project dir and Node bin at runtime, so it needs
-# no substitution — just make sure it is executable.
-chmod +x "$RUN_CRAWL_SH"
+# The wrappers self-resolve the project dir and Node bin at runtime, so they
+# need no substitution — just make sure they are executable.
+chmod +x "$RUN_CRAWL_SH" "$RUN_SOURCES_SH"
 
-# --- Ensure the log directory exists ----------------------------------------
+# --- Ensure the directories exist -------------------------------------------
 mkdir -p "$LOG_DIR"
-
-# --- Render the plist with this machine's values ----------------------------
-# The plist's ProgramArguments must point at the wrapper's absolute path, and
-# the log paths at this user's $HOME — those are the two machine-specific values.
 mkdir -p "$LAUNCH_AGENTS_DIR"
-sed -e "s|__RUN_CRAWL_SH__|$RUN_CRAWL_SH|g" \
-    -e "s|__HOME__|$HOME|g" \
-    "$OPS_DIR/com.jobscout.crawl.plist" >"$INSTALLED_PLIST"
 
-# Validate the rendered plist before loading.
-plutil -lint "$INSTALLED_PLIST"
+# --- Render + load one agent -------------------------------------------------
+# Each plist's ProgramArguments must point at its wrapper's absolute path, and
+# the log paths at this user's $HOME — those are the two machine-specific values.
+install_agent() {
+  local label="$1" wrapper_token="$2" wrapper_path="$3"
+  local installed="$LAUNCH_AGENTS_DIR/$label.plist"
 
-# --- (Re)load into launchd --------------------------------------------------
-# Unload first so a re-run picks up changes (ignore "not loaded" errors).
-launchctl unload "$INSTALLED_PLIST" 2>/dev/null || true
-launchctl load "$INSTALLED_PLIST"
+  sed -e "s|$wrapper_token|$wrapper_path|g" \
+      -e "s|__HOME__|$HOME|g" \
+      "$OPS_DIR/$label.plist" >"$installed"
 
-echo "jobscout: LaunchAgent installed and loaded ($INSTALLED_PLIST)"
-echo "jobscout: it will run every 3 hours; logs in $LOG_DIR"
+  # Validate the rendered plist before loading.
+  plutil -lint "$installed"
+
+  # Unload first so a re-run picks up changes (ignore "not loaded" errors).
+  launchctl unload "$installed" 2>/dev/null || true
+  launchctl load "$installed"
+  echo "jobscout: LaunchAgent installed and loaded ($installed)"
+}
+
+install_agent "com.jobscout.crawl" "__RUN_CRAWL_SH__" "$RUN_CRAWL_SH"
+install_agent "com.jobscout.sources" "__RUN_SOURCES_SH__" "$RUN_SOURCES_SH"
+
+echo "jobscout: crawl runs every 12 hours, sources once a day; logs in $LOG_DIR"

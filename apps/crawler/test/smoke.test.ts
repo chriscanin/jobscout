@@ -4,8 +4,8 @@ import { DEFAULT_CRITERIA } from "@jobscout/core";
 import { Source } from "@jobscout/core";
 
 describe("ADAPTERS registry", () => {
-  it("has exactly 6 adapters", () => {
-    expect(ADAPTERS).toHaveLength(6);
+  it("has exactly 13 adapters", () => {
+    expect(ADAPTERS).toHaveLength(13);
   });
 
   it("all adapter source values are unique", () => {

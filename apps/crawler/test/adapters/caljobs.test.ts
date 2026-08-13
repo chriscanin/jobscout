@@ -38,7 +38,7 @@ describe("C1 — happy path: parse and stable external_ids", () => {
     const page1Html = fixture("search-results-page1.html");
     const ctx = buildTestCtx({
       fixtures: {
-        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
+        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
           new Response(page1Html, { status: 200 }),
       },
     });
@@ -62,7 +62,7 @@ describe("C1 — happy path: parse and stable external_ids", () => {
     const makeCtx = () =>
       buildTestCtx({
         fixtures: {
-          "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
+          "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
             new Response(page1Html, { status: 200 }),
         },
       });
@@ -80,7 +80,7 @@ describe("C1 — happy path: parse and stable external_ids", () => {
     const page1Html = fixture("search-results-page1.html");
     const ctx = buildTestCtx({
       fixtures: {
-        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
+        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
           new Response(page1Html, { status: 200 }),
       },
     });
@@ -105,7 +105,7 @@ describe("C2 — session-cookie flow", () => {
 
     // The search URL the adapter will actually call
     const searchUrl =
-      "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1";
+      "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1";
 
     const ctx = buildTestCtx({
       fixtures: {
@@ -146,7 +146,7 @@ describe("C3 — pagination stops at 3-page cap", () => {
     const page3Html = fixture("search-results-page3.html");
 
     const baseSearchUrl =
-      "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1";
+      "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1";
     const page2Url =
       "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?pg=2";
     const page3Url =
@@ -200,7 +200,7 @@ describe("C4 — layout changed: selector miss yields [] and recorded error", ()
     const layoutChangedHtml = fixture("layout-changed.html");
     const ctx = buildTestCtx({
       fixtures: {
-        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
+        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
           new Response(layoutChangedHtml, { status: 200 }),
       },
     });
@@ -214,7 +214,7 @@ describe("C4 — layout changed: selector miss yields [] and recorded error", ()
     const layoutChangedHtml = fixture("layout-changed.html");
     const ctx = buildTestCtx({
       fixtures: {
-        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
+        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
           new Response(layoutChangedHtml, { status: 200 }),
       },
     });
@@ -232,7 +232,7 @@ describe("C4 — layout changed: selector miss yields [] and recorded error", ()
     const layoutChangedHtml = fixture("layout-changed.html");
     const ctx = buildTestCtx({
       fixtures: {
-        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
+        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
           new Response(layoutChangedHtml, { status: 200 }),
       },
     });
@@ -248,7 +248,7 @@ describe("C4 — layout changed: selector miss yields [] and recorded error", ()
     const layoutChangedHtml = fixture("layout-changed.html");
     const ctx = buildTestCtx({
       fixtures: {
-        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+mobile+developer+OR+mobile+engineer+OR+expo+OR+ios+engineer+OR+android+engineer+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
+        "https://www.caljobs.ca.gov/vosnet/jobbanks/jobsearch.aspx?q=react+native+OR+react-native+OR+expo+OR+mobile+OR+ios+OR+android+OR+swift+OR+kotlin+OR+flutter+OR+react+developer+OR+react+engineer+OR+react.js+OR+frontend+OR+front-end+OR+front+end+OR+ui+engineer+OR+web+developer+OR+full+stack+OR+fullstack+OR+full-stack&pg=1":
           new Response(layoutChangedHtml, { status: 200 }),
       },
     });

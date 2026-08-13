@@ -157,6 +157,61 @@ const CANDIDATES = [
   ['Turso', 'ashby', 'turso'],
   ['Neon', 'ashby', 'neon'],
   ['Supabase', 'ashby', 'supabase'],
+  // ── Mobile-first / React Native heavy (consumer apps, fintech, RN shops) ──
+  ['Duolingo', 'greenhouse', 'duolingo'],
+  ['Strava', 'greenhouse', 'strava'],
+  ['Peloton', 'greenhouse', 'peloton'],
+  ['Calm', 'greenhouse', 'calm'],
+  ['Headspace', 'greenhouse', 'headspace'],
+  ['Whoop', 'greenhouse', 'whoop'],
+  ['Oura', 'greenhouse', 'ouraring'],
+  ['Bumble', 'greenhouse', 'bumble'],
+  ['Hinge', 'greenhouse', 'hinge'],
+  ['Match Group', 'greenhouse', 'matchgroup'],
+  ['Grindr', 'greenhouse', 'grindr'],
+  ['Turo', 'greenhouse', 'turo'],
+  ['Lime', 'greenhouse', 'lime'],
+  ['Block (Cash App)', 'greenhouse', 'block'],
+  ['Klarna', 'greenhouse', 'klarna'],
+  ['Wealthfront', 'greenhouse', 'wealthfront'],
+  ['Current', 'greenhouse', 'current'],
+  ['Varo', 'greenhouse', 'varomoney'],
+  ['Dave', 'greenhouse', 'dave'],
+  ['MoonPay', 'greenhouse', 'moonpay'],
+  ['Public', 'greenhouse', 'public'],
+  ['Acorns', 'greenhouse', 'acorns'],
+  ['Chess.com', 'greenhouse', 'chesscom'],
+  ['AllTrails', 'greenhouse', 'alltrails'],
+  ['Fetch Rewards', 'greenhouse', 'fetch'],
+  ['Ibotta', 'greenhouse', 'ibotta'],
+  ['VSCO', 'greenhouse', 'vsco'],
+  ['Rocket Money', 'greenhouse', 'rocketmoney'],
+  ['Step', 'greenhouse', 'step'],
+  ['Greenlight', 'greenhouse', 'greenlight'],
+  ['Bilt Rewards', 'greenhouse', 'biltrewards'],
+  ['Zillow', 'greenhouse', 'zillow'],
+  ['Redfin', 'greenhouse', 'redfin'],
+  ['Twitch', 'greenhouse', 'twitch'],
+  ['Babbel', 'greenhouse', 'babbel'],
+  ['Quizlet', 'greenhouse', 'quizlet'],
+  ['Noom', 'greenhouse', 'noom'],
+  ['Gopuff', 'greenhouse', 'gopuff'],
+  ['Cameo', 'greenhouse', 'cameo'],
+  ['Untappd? (Next Glass)', 'greenhouse', 'nextglass'],
+  ['Hopper', 'lever', 'hopper'],
+  ['Callstack (RN agency)', 'lever', 'callstack'],
+  ['theScore', 'lever', 'thescore'],
+  ['Sleeper', 'lever', 'sleeper'],
+  ['Expo (React Native)', 'ashby', 'expo'],
+  ['Margelo (RN agency)', 'ashby', 'margelo'],
+  ['Bluesky', 'ashby', 'bluesky'],
+  ['Partiful', 'ashby', 'partiful'],
+  ['Beeper (Automattic)', 'ashby', 'beeper'],
+  ['The Browser Company', 'ashby', 'thebrowsercompany'],
+  ['Luma', 'ashby', 'luma'],
+  ['Pave', 'ashby', 'pave'],
+  ['Whop', 'ashby', 'whop'],
+  ['Cash App', 'smartrecruiters', 'cashapp'],
 ];
 
 const ROLE_KEYWORDS = [
@@ -171,6 +226,9 @@ function endpoint(ats, token) {
   if (ats === 'greenhouse') return `https://boards-api.greenhouse.io/v1/boards/${token}/jobs?content=false`;
   if (ats === 'lever') return `https://api.lever.co/v0/postings/${token}?mode=json`;
   if (ats === 'ashby') return `https://api.ashbyhq.com/posting-api/job-board/${token}`;
+  if (ats === 'smartrecruiters') return `https://api.smartrecruiters.com/v1/companies/${token}/postings?limit=100`;
+  if (ats === 'workable') return `https://apply.workable.com/api/v1/widget/accounts/${token}`;
+  if (ats === 'recruitee') return `https://${token}.recruitee.com/api/offers/`;
   throw new Error(`unknown ats ${ats}`);
 }
 
@@ -178,6 +236,9 @@ function titlesOf(ats, body) {
   if (ats === 'greenhouse') return (body.jobs ?? []).map((j) => j.title ?? '');
   if (ats === 'lever') return (Array.isArray(body) ? body : []).map((j) => j.text ?? '');
   if (ats === 'ashby') return (body.jobs ?? []).map((j) => j.title ?? '');
+  if (ats === 'smartrecruiters') return (body.content ?? []).map((j) => j.name ?? '');
+  if (ats === 'workable') return (body.jobs ?? []).map((j) => j.title ?? '');
+  if (ats === 'recruitee') return (body.offers ?? []).map((j) => j.title ?? '');
   return [];
 }
 

@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { Ats, Difficulty, RoleCategory, Source, Status } from "./enums.js";
+import {
+  Ats,
+  Difficulty,
+  DiscoveredVia,
+  RoleCategory,
+  Source,
+  Status,
+} from "./enums.js";
 
 /**
  * Zod schemas + inferred types for the domain rows and payloads defined in
@@ -53,7 +60,7 @@ export const Company = z.object({
   ats: Ats,
   board_token: z.string().nullable(),
   careers_url: z.string().nullable(),
-  discovered_via: z.enum(["seed", "web-search", "manual"]),
+  discovered_via: DiscoveredVia,
   active: z.boolean(),
   last_crawled_at: z.string().nullable(),
   created_at: z.string().nullable(),
@@ -156,11 +163,14 @@ export const DEFAULT_CRITERIA: Criteria = Criteria.parse({
       priority: 1,
       keywords: [
         "react native",
-        "mobile developer",
-        "mobile engineer",
+        "react-native",
         "expo",
-        "ios engineer",
-        "android engineer",
+        "mobile",
+        "ios",
+        "android",
+        "swift",
+        "kotlin",
+        "flutter",
       ],
     },
     {

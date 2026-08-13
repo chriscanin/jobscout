@@ -7,9 +7,12 @@
  */
 export default function Forbidden() {
   return (
-    <div>
+    <div className="rise">
+      <p className="kicker">403</p>
       <h1>Not authorized</h1>
-      <p>Not authorized — your account is not on the admin allowlist.</p>
+      <p className="lede">
+        Not authorized — your account is not on the admin allowlist.
+      </p>
     </div>
   );
 }

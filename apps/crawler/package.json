@@ -9,6 +9,7 @@
     "crawl": "tsx src/cli.ts crawl",
     "loop": "tsx src/cli.ts loop",
     "discover": "tsx src/cli.ts discover",
+    "sources": "tsx src/cli.ts sources",
     "doctor": "tsx src/cli.ts doctor",
     "classify": "tsx src/classify.ts",
     "db:push": "tsx src/db-push.ts",

@@ -44,9 +44,9 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
     expect(stdout.trim()).toBe("com.jobscout.crawl");
   });
 
-  it("StartInterval extracts to 10800 (3 hours)", async () => {
+  it("StartInterval extracts to 43200 (twice daily)", async () => {
     const { stdout } = await run("plutil", ["-extract", "StartInterval", "raw", PLIST]);
-    expect(stdout.trim()).toBe("10800");
+    expect(stdout.trim()).toBe("43200");
   });
 
   it("RunAtLoad is true", async () => {
@@ -87,6 +87,37 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
 
   it("run-crawl.sh passes bash -n", async () => {
     const wrapper = await run("bash", ["-n", path.join(OPS, "run-crawl.sh")]);
+    expect(wrapper.code).toBe(0);
+  });
+});
+
+describe("curated-sources launchd plist is valid and correctly configured", () => {
+  const SOURCES_PLIST = path.join(OPS, "com.jobscout.sources.plist");
+
+  it("plutil -lint exits 0", async () => {
+    const { code } = await run("plutil", ["-lint", SOURCES_PLIST]);
+    expect(code).toBe(0);
+  });
+
+  it("Label extracts to com.jobscout.sources", async () => {
+    const { stdout } = await run("plutil", ["-extract", "Label", "raw", SOURCES_PLIST]);
+    expect(stdout.trim()).toBe("com.jobscout.sources");
+  });
+
+  it("StartInterval extracts to 86400 (daily)", async () => {
+    const { stdout } = await run("plutil", ["-extract", "StartInterval", "raw", SOURCES_PLIST]);
+    expect(stdout.trim()).toBe("86400");
+  });
+
+  it("StandardOutPath and StandardErrorPath contain Library/Logs/jobscout/", async () => {
+    const out = await run("plutil", ["-extract", "StandardOutPath", "raw", SOURCES_PLIST]);
+    const err = await run("plutil", ["-extract", "StandardErrorPath", "raw", SOURCES_PLIST]);
+    expect(out.stdout).toContain("Library/Logs/jobscout/");
+    expect(err.stdout).toContain("Library/Logs/jobscout/");
+  });
+
+  it("run-sources.sh passes bash -n", async () => {
+    const wrapper = await run("bash", ["-n", path.join(OPS, "run-sources.sh")]);
     expect(wrapper.code).toBe(0);
   });
 });

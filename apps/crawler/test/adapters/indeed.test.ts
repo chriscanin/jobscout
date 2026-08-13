@@ -31,7 +31,7 @@ vi.stubGlobal("fetch", () => {
 
 // The initial search URL the Indeed adapter builds with DEFAULT_CRITERIA keywords
 const SEARCH_URL =
-  "https://www.indeed.com/jobs?q=react+native+mobile+developer+mobile+engineer+expo+ios+engineer+android+engineer+react+developer+react+engineer+react.js+frontend+front-end+front+end+ui+engineer+web+developer+full+stack+fullstack+full-stack&l=remote&remotejob=032b3046-06a3-4876-8dfd-474eb5e7ed11";
+  "https://www.indeed.com/jobs?q=react+native+react-native+expo+mobile+ios+android+swift+kotlin+flutter+react+developer+react+engineer+react.js+frontend+front-end+front+end+ui+engineer+web+developer+full+stack+fullstack+full-stack&l=remote&remotejob=032b3046-06a3-4876-8dfd-474eb5e7ed11";
 
 // ---------------------------------------------------------------------------
 // I1 — Happy path: external_id from jk param, tracking junk discarded

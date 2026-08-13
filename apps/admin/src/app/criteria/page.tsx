@@ -17,9 +17,20 @@ export default async function CriteriaPage() {
 
   return (
     <div>
-      <h1>Matching Criteria</h1>
-      <p>Edit the JSON below and submit to update. Changes take effect on the next crawl.</p>
-      <CriteriaForm defaultValue={criteria} />
+      <section className="rise">
+        <p className="kicker">The brief</p>
+        <h1>Matching criteria</h1>
+        <p className="lede">
+          Edit the JSON and save — the next crawl scores against it. Invalid
+          JSON or schema violations write nothing.
+        </p>
+      </section>
+
+      <section className="section rise">
+        <div className="panel">
+          <CriteriaForm defaultValue={criteria} />
+        </div>
+      </section>
     </div>
   );
 }
@@ -41,13 +52,14 @@ function CriteriaForm({ defaultValue }: { defaultValue: unknown }) {
     <form action={submitCriteria}>
       <textarea
         name="criteria_json"
-        rows={40}
-        cols={80}
+        rows={34}
         defaultValue={JSON.stringify(defaultValue, null, 2)}
-        style={{ fontFamily: "monospace", fontSize: "0.85em" }}
       />
-      <br />
-      <button type="submit">Save criteria</button>
+      <p style={{ marginTop: "0.6rem" }}>
+        <button type="submit" className="btn btn-primary">
+          Save criteria
+        </button>
+      </p>
     </form>
   );
 }

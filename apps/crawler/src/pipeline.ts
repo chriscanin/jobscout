@@ -70,6 +70,9 @@ const API_BOARD_SOURCES: ReadonlySet<Source> = new Set<Source>([
   "greenhouse",
   "lever",
   "ashby",
+  "smartrecruiters",
+  "workable",
+  "recruitee",
 ]);
 
 /** Per-source tally folded into `crawl_runs.stats` (CrawlRunInput shape). */

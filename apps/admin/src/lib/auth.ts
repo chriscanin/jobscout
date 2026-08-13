@@ -18,14 +18,32 @@
  * user — no page ever renders content for an unauthorized request.
  */
 import { forbidden, redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { isAllowed } from "./allowlist";
 import { getAuth0Client } from "./auth0";
+import { devBypassEmail } from "./dev-bypass";
+import { isValidToken, passwordAuthEnabled } from "./password-auth";
 
 /**
- * Returns the authenticated user's email from the current Auth0 session,
+ * Returns the authenticated user's email from the current session,
  * or `null` if there is no active session. Designed to be stubbed in tests.
  */
 export async function getSessionEmail(): Promise<string | null> {
+  // Local-only bypass (see lib/dev-bypass.ts) — allowlist still applies below.
+  const bypass = devBypassEmail();
+  if (bypass) return bypass;
+
+  // Password-gate mode: validate the session cookie and return the first
+  // allowlisted email as the identity (there is no per-user email in this mode).
+  if (passwordAuthEnabled()) {
+    const jar = await cookies();
+    const token = jar.get("jobscout_session")?.value;
+    if (!(await isValidToken(token))) return null;
+    const csv = process.env.ADMIN_ALLOWED_EMAILS ?? "";
+    const first = csv.split(",").map((e) => e.trim()).filter(Boolean)[0];
+    return first ?? null;
+  }
+
   const auth0 = getAuth0Client();
   const session = await auth0.getSession();
   return session?.user?.email ?? null;
@@ -45,7 +63,7 @@ export async function requireAllowedUser(
   const email = await getEmail();
 
   if (!email) {
-    redirect("/auth/login");
+    redirect(passwordAuthEnabled() ? "/login" : "/auth/login");
   }
 
   const csv = process.env.ADMIN_ALLOWED_EMAILS ?? "";

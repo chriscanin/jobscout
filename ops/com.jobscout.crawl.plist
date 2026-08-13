@@ -26,7 +26,7 @@
   </array>
 
   <key>StartInterval</key>
-  <integer>10800</integer>
+  <integer>43200</integer>
 
   <key>RunAtLoad</key>
   <true/>

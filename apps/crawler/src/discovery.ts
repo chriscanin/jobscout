@@ -189,7 +189,7 @@ function validationUrl(ats: "greenhouse" | "lever" | "ashby", board_token: strin
  *
  * Returns `{ valid: true, name }` or `{ valid: false }`.
  */
-async function validateBoard(
+export async function validateBoard(
   fetchFn: typeof fetch,
   ats: "greenhouse" | "lever" | "ashby",
   board_token: string,

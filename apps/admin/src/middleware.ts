@@ -13,8 +13,39 @@
  */
 import { type NextRequest, NextResponse } from "next/server";
 import { getAuth0Client } from "./lib/auth0";
+import { devBypassEmail } from "./lib/dev-bypass";
+import {
+  isValidToken,
+  passwordAuthEnabled,
+  SESSION_COOKIE,
+} from "./lib/password-auth";
 
 export async function middleware(request: NextRequest) {
+  // Local-only bypass (see lib/dev-bypass.ts): skip the Auth0 middleware —
+  // pages still enforce the allowlist via requireAllowedUser.
+  if (devBypassEmail()) {
+    return NextResponse.next();
+  }
+
+  // Password-gate mode: no Auth0 tenant required.
+  if (passwordAuthEnabled()) {
+    const path = request.nextUrl.pathname;
+    // Allow the login page and its POST through unconditionally.
+    if (path === "/login") {
+      return NextResponse.next();
+    }
+    const token = request.cookies.get(SESSION_COOKIE)?.value;
+    if (await isValidToken(token)) {
+      return NextResponse.next();
+    }
+    const loginUrl = new URL("/login", request.nextUrl.origin);
+    loginUrl.searchParams.set(
+      "returnTo",
+      request.nextUrl.pathname + request.nextUrl.search,
+    );
+    return NextResponse.redirect(loginUrl);
+  }
+
   const auth0 = getAuth0Client();
   const authRes = await auth0.middleware(request);
 

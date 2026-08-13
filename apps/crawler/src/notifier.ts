@@ -211,6 +211,12 @@ export async function notifyNewMatches(deps: {
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   } = deps;
 
+  // Notifications disabled (empty/unset webhook, e.g. DISCORD_WEBHOOK_URL="")
+  // — skip cleanly: nothing posts, nothing is marked notified.
+  if (!webhookUrl || webhookUrl.trim() === "") {
+    return { notifiedCount: 0, eligibleCount: 0 };
+  }
+
   // 1. Select eligible jobs.
   const eligible = await selectEligible(db, criteria);
   const eligibleCount = eligible.length;

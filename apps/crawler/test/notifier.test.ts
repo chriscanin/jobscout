@@ -161,6 +161,30 @@ function rawJob(overrides: Partial<RawJob> = {}): RawJob {
 }
 
 // ---------------------------------------------------------------------------
+// S0 — Disabled: empty webhook skips cleanly (no fetch, nothing marked)
+// ---------------------------------------------------------------------------
+describe("S0 — empty webhook disables notifications", () => {
+  it("posts nothing, marks nothing, returns zeros, and never calls fetch", async () => {
+    const { fetchImpl, callCount } = makeMockFetch([ok204()]);
+
+    const j = await insertJob(rawJob({ title: "Job A", company: "Acme" }));
+    await classify(j.id, { match_score: 85, role_category: "react-native", difficulty: "easy" });
+
+    const result = await notifyNewMatches({
+      data: db,
+      criteria: CRITERIA,
+      webhookUrl: "",
+      fetchImpl,
+    });
+
+    expect(callCount()).toBe(0);
+    expect(result).toEqual({ notifiedCount: 0, eligibleCount: 0 });
+    const r = await getJob(j.id);
+    expect(r.status).toBe("new");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // S1 — Happy path: eligible jobs are posted and marked notified
 // ---------------------------------------------------------------------------
 describe("S1 — happy path", () => {

@@ -30,6 +30,14 @@ import {
   runDiscovery,
   type SearchClient,
 } from "./discovery.js";
+import { createLlmClient } from "./llm.js";
+import {
+  CURATED_SOURCES,
+  createDbSourcesRepo,
+  runSources,
+  type RunSourcesDeps,
+  type SourceRunStats,
+} from "./sources.js";
 
 /**
  * The env vars a crawler machine must ALWAYS have (CONTRACT §Environment
@@ -249,6 +257,74 @@ export function createWebSearchClient(anthropic: AnthropicLike): SearchClient {
       return results;
     },
   };
+}
+
+// ===========================================================================
+// sources
+// ===========================================================================
+
+/**
+ * Run the curated startup-intel sources (spec: curated-sources). Builds the
+ * real Db/LLM/http/search deps, runs every tracked source (or the --source
+ * subset), prints per-source stats, and resolves with the exit code.
+ * Deps are injectable for tests.
+ */
+export async function runSourcesCli(
+  opts: { source?: string[] } = {},
+  logger: Logger = consoleLogger(),
+  deps?: Partial<RunSourcesDeps> & { db?: Db },
+): Promise<number> {
+  const dbUrl = process.env.SUPABASE_DB_URL;
+  const db = deps?.db ?? (dbUrl ? createPgDb(dbUrl) : undefined);
+  if (!db && !deps?.repo) {
+    logger.error("SUPABASE_DB_URL is not set");
+    return 1;
+  }
+
+  const keys = opts.source ?? [];
+  const sources =
+    keys.length > 0
+      ? CURATED_SOURCES.filter((s) => keys.includes(s.key))
+      : CURATED_SOURCES;
+  if (sources.length === 0) {
+    logger.error(
+      `no matching sources; known keys: ${CURATED_SOURCES.map((s) => s.key).join(", ")}`,
+    );
+    return 1;
+  }
+
+  // Web search needs Anthropic; without a key, resolution is slug-probe only.
+  const searchClient =
+    deps?.searchClient ??
+    (process.env.ANTHROPIC_API_KEY
+      ? createWebSearchClient(createAnthropicMessagesClient())
+      : undefined);
+
+  const httpClient = createHttpClient();
+  const stats = await runSources({
+    sources,
+    fetchFn:
+      deps?.fetchFn ??
+      (((input: RequestInfo | URL, init?: RequestInit) =>
+        httpClient(input as string, init)) as typeof fetch),
+    llm: deps?.llm ?? createLlmClient(),
+    searchClient,
+    repo: deps?.repo ?? createDbSourcesRepo(db as Db),
+    logger,
+  });
+
+  const totals = stats.reduce(
+    (acc, s: SourceRunStats) => ({
+      inserted: acc.inserted + s.inserted,
+      errors: acc.errors + s.errors.length,
+    }),
+    { inserted: 0, errors: 0 },
+  );
+  logger.info(
+    `sources: added ${totals.inserted} compan${totals.inserted === 1 ? "y" : "ies"}` +
+      ` across ${stats.length} source(s), ${totals.errors} error(s)`,
+  );
+  return totals.errors > 0 ? 1 : 0;
 }
 
 // ===========================================================================
@@ -507,6 +583,18 @@ export function buildProgram(): Command {
     .description("Run web-search-based company discovery")
     .action(async () => {
       const code = await runDiscoverCli();
+      process.exit(code);
+    });
+
+  program
+    .command("sources")
+    .description("Track curated startup-intel sources and add discovered companies")
+    .option(
+      "--source <key...>",
+      `only these sources (${CURATED_SOURCES.map((s) => s.key).join(", ")})`,
+    )
+    .action(async (opts: { source?: string[] }) => {
+      const code = await runSourcesCli(opts);
       process.exit(code);
     });
 
