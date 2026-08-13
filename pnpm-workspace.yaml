@@ -1,6 +1,11 @@
 packages:
   - "packages/*"
   - "apps/*"
+# pnpm 10 name for the build-script allowlist (ignored by pnpm 11):
 onlyBuiltDependencies:
   - esbuild
   - sharp
+# pnpm 11 name for the same allowlist:
+allowBuilds:
+  esbuild: true
+  sharp: true
