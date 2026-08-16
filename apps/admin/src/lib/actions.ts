@@ -4,7 +4,6 @@
  * Server Actions for the admin app (spec 08 §3).
  *
  * All actions:
- * 1. Call requireAllowedUser() to verify the session.
  * 2. Run the operation through packages/core (never write SQL directly here).
  * 3. Return a discriminated result so UI can show success or error without
  *    throwing across the server/client boundary.
@@ -18,7 +17,6 @@ import {
   type Status,
 } from "@jobscout/core";
 import { getDb } from "./db";
-import { requireAllowedUser } from "./auth";
 
 export type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -32,7 +30,6 @@ export async function transitionJobAction(
   jobId: string,
   to: Status,
 ): Promise<ActionResult> {
-  await requireAllowedUser();
   const db = getDb();
   try {
     await applyStatusTransition(db, jobId, to);
@@ -57,7 +54,6 @@ export async function saveNotesAction(
   jobId: string,
   notes: string,
 ): Promise<ActionResult> {
-  await requireAllowedUser();
   const db = getDb();
   await db.query(`UPDATE jobs SET notes = $1 WHERE id = $2`, [notes, jobId]);
   revalidatePath(`/jobs/${jobId}`);
@@ -72,7 +68,6 @@ export async function saveNotesAction(
 export async function updateCriteriaAction(
   value: unknown,
 ): Promise<ActionResult<{ fieldErrors?: Record<string, string[]> }>> {
-  await requireAllowedUser();
   const db = getDb();
   try {
     await updateCriteria(db, value);
@@ -102,7 +97,6 @@ export async function updateCriteriaAction(
  * Read current criteria — used by the /criteria page to populate the form.
  */
 export async function getCriteriaAction() {
-  await requireAllowedUser();
   const db = getDb();
   return getCriteria(db);
 }

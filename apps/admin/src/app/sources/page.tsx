@@ -25,6 +25,7 @@ export default async function SourcesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+
   const sp = await searchParams;
   const viaParsed = CuratedSourceKey.safeParse(sp.via);
   const via = viaParsed.success ? viaParsed.data : undefined;

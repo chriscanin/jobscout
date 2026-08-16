@@ -1,50 +1,38 @@
 /**
- * Auth0 v4 middleware (spec 08 §2).
+ * The board is public. Nothing here gates anything.
  *
- * In v4, auth0.middleware(request) automatically mounts the SDK routes
- * (/auth/login, /auth/callback, /auth/logout) — no separate route handler
- * is required.
+ * This app started life as a private admin panel behind Auth0, and later a
+ * password gate. Both are gone: it is a job board, and a job board that asks
+ * for a password is not much of a job board.
  *
- * For non-auth routes, we additionally check for an active session and
- * redirect unauthenticated requests to /auth/login with a returnTo param.
+ * The auth helpers in `lib/` are deliberately left in place, unused, so the gate
+ * can be reinstated by calling `requireAllowedUser()` at the top of a page or
+ * Server Action again. Nothing else would need to change.
  *
- * Env vars required by @auth0/nextjs-auth0 v4:
- *   AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_SECRET, APP_BASE_URL
+ * The Auth0 SDK middleware still runs when a tenant is configured, purely so its
+ * /auth/* routes stay mounted. It is wrapped because an unconfigured or
+ * half-configured tenant throws on client construction, and a 500 on every
+ * request is a much worse failure than no auth routes.
  */
 import { type NextRequest, NextResponse } from "next/server";
 import { getAuth0Client } from "./lib/auth0";
-import { devBypassEmail } from "./lib/dev-bypass";
 import { passwordAuthEnabled } from "./lib/password-auth";
 
 export async function middleware(request: NextRequest) {
-  // Local-only bypass (see lib/dev-bypass.ts): skip the Auth0 middleware —
-  // pages still enforce the allowlist via requireAllowedUser.
-  if (devBypassEmail()) {
-    return NextResponse.next();
-  }
-
-  // Password-gate mode: no Auth0 tenant required. The gate is opt-in per page
-  // now rather than blanket, so nothing is redirected here.
   if (passwordAuthEnabled()) {
     return NextResponse.next();
   }
 
-  const auth0 = getAuth0Client();
-  const authRes = await auth0.middleware(request);
-
-  // /auth/* routes are owned by the SDK middleware — return its response directly
-  if (request.nextUrl.pathname.startsWith("/auth")) {
-    return authRes;
+  if (!process.env.AUTH0_DOMAIN) {
+    return NextResponse.next();
   }
 
-  // No session check here. Reading the board does not require an account, and
-  // the pages that expose the pipeline call `optionalUser`, while every mutating
-  // Server Action still calls `requireAllowedUser` for itself. Gating in the
-  // middleware as well would only lock anonymous visitors out of public pages.
-  //
-  // The SDK response is still returned so session cookies keep refreshing for
-  // signed-in owners.
-  return authRes;
+  try {
+    const authRes = await getAuth0Client().middleware(request);
+    return authRes ?? NextResponse.next();
+  } catch {
+    return NextResponse.next();
+  }
 }
 
 export const config = {

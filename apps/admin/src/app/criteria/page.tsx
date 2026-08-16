@@ -5,19 +5,15 @@
  */
 import { getCriteria } from "@jobscout/core";
 import { getDb } from "../../lib/db";
-import { requireAllowedUser } from "../../lib/auth";
 import { updateCriteriaAction } from "../../lib/actions";
 
 /**
- * Live data + a per-visitor view (the pipeline is shown only to the owner),
- * so this must never be prerendered at build time.
+ * Reads live data, so it must not be prerendered at build time.
  */
 export const dynamic = "force-dynamic";
 
 
 export default async function CriteriaPage() {
-  // Redirects (null session) or 403s (non-allowlisted) before any DB access.
-  await requireAllowedUser();
 
   const db = getDb();
   const criteria = await getCriteria(db);

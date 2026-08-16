@@ -83,18 +83,16 @@ postings.
 
 ## The board
 
-A Next.js App Router app over the same Postgres database.
+A Next.js App Router app over the same Postgres database, and it is **entirely
+public** — no account, no login, nothing gated. Browse the postings, filter by
+difficulty and score, read the match reasoning, see which sources found which
+companies, and check the crawl history.
 
-**Public.** Anyone can browse the postings, scores, difficulty grades, sources,
-and crawl history. No account, no login.
-
-**Private.** The pipeline layered on top — which postings were queued, applied
-to, or dismissed, and the notes attached to each — renders only for the signed-in
-owner. Every mutating Server Action calls its own auth guard rather than trusting
-the middleware, so opening the read paths did not open the write paths.
-
-That split is enforced by `optionalUser` (returns null instead of redirecting)
-versus `requireAllowedUser` (redirects or 403s), and both are covered by tests.
+It began as a private admin panel behind Auth0, then a password gate. Both are
+gone, because a job board that asks for a password is not much of a job board.
+The auth helper survives in `lib/auth.ts`, unused and tested; adding
+`await requireAllowedUser()` to the top of a page or Server Action puts the gate
+back, and nothing else would need to change.
 
 ## Layout
 

@@ -7,7 +7,6 @@ import { notFound } from "next/navigation";
 import { getJob, isAllowedTransition } from "@jobscout/core";
 import type { Status } from "@jobscout/core";
 import { getDb } from "../../../lib/db";
-import { optionalUser } from "../../../lib/auth";
 import { transitionJobAction, saveNotesAction } from "../../../lib/actions";
 import { DifficultyChip, Score, StatusChip } from "../../../lib/chips";
 
@@ -16,9 +15,6 @@ export default async function JobDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // Public page. The posting itself is public; the pipeline state and the
-  // notes attached to it are shown only to a signed-in owner.
-  const owner = await optionalUser();
 
   const { id } = await params;
   const db = getDb();
@@ -59,7 +55,7 @@ export default async function JobDetailPage({
           <b style={{ color: "var(--ink)" }}>{job.company}</b>
           <span>·</span>
           <span>{job.source}</span>
-          {owner && <StatusChip value={job.status} />}
+          <StatusChip value={job.status} />
           <DifficultyChip value={job.difficulty} />
           {job.location && (
             <>
@@ -114,25 +110,23 @@ export default async function JobDetailPage({
             )}
           </div>
 
-          {owner && (
-            <div className="panel">
-              <h2>Notes</h2>
-              <form
-                action={async (formData: FormData) => {
-                  "use server";
-                  const notes = formData.get("notes") as string;
-                  await saveNotesAction(id, notes ?? "");
-                }}
-              >
-                <textarea name="notes" defaultValue={job.notes ?? ""} rows={6} />
-                <p style={{ marginTop: "0.5rem" }}>
-                  <button type="submit" className="btn">
-                    Save notes
-                  </button>
-                </p>
-              </form>
-            </div>
-          )}
+          <div className="panel">
+            <h2>Notes</h2>
+            <form
+              action={async (formData: FormData) => {
+                "use server";
+                const notes = formData.get("notes") as string;
+                await saveNotesAction(id, notes ?? "");
+              }}
+            >
+              <textarea name="notes" defaultValue={job.notes ?? ""} rows={6} />
+              <p style={{ marginTop: "0.5rem" }}>
+                <button type="submit" className="btn">
+                  Save notes
+                </button>
+              </p>
+            </form>
+          </div>
         </div>
 
         <aside>
@@ -167,31 +161,29 @@ export default async function JobDetailPage({
             )}
           </div>
 
-          {owner && (
-            <div className="panel">
-              <h2>Move</h2>
-              {enabledButtons.length === 0 && (
-                <p className="muted">No actions available.</p>
-              )}
-              {enabledButtons.map((btn) => (
-                <form
-                  key={btn.label}
-                  action={async () => {
-                    "use server";
-                    await transitionJobAction(id, btn.to);
-                  }}
-                  className="inline-form"
+          <div className="panel">
+            <h2>Move</h2>
+            {enabledButtons.length === 0 && (
+              <p className="muted">No actions available.</p>
+            )}
+            {enabledButtons.map((btn) => (
+              <form
+                key={btn.label}
+                action={async () => {
+                  "use server";
+                  await transitionJobAction(id, btn.to);
+                }}
+                className="inline-form"
+              >
+                <button
+                  type="submit"
+                  className={btn.to === "dismissed" ? "btn btn-quiet" : "btn btn-primary"}
                 >
-                  <button
-                    type="submit"
-                    className={btn.to === "dismissed" ? "btn btn-quiet" : "btn btn-primary"}
-                  >
-                    {btn.label}
-                  </button>
-                </form>
-              ))}
-            </div>
-          )}
+                  {btn.label}
+                </button>
+              </form>
+            ))}
+          </div>
         </aside>
       </div>
     </div>
