@@ -1,6 +1,6 @@
 /**
  * /sources — the seven curated startup-intel sources and the companies they
- * have discovered. Server Component behind requireAllowedUser.
+ * have discovered. Public Server Component.
  */
 import {
   CuratedSourceKey,
@@ -10,7 +10,6 @@ import {
   type SourceSummary,
 } from "@jobscout/core";
 import { getDb } from "../../lib/db";
-import { requireAllowedUser } from "../../lib/auth";
 import { shortDate } from "../../lib/chips";
 import { SOURCE_META } from "../../lib/source-meta";
 
@@ -26,8 +25,6 @@ export default async function SourcesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  await requireAllowedUser();
-
   const sp = await searchParams;
   const viaParsed = CuratedSourceKey.safeParse(sp.via);
   const via = viaParsed.success ? viaParsed.data : undefined;

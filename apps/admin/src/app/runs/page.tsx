@@ -4,12 +4,15 @@
  */
 import { listCrawlRuns } from "@jobscout/core";
 import { getDb } from "../../lib/db";
-import { requireAllowedUser } from "../../lib/auth";
+
+/**
+ * Live data + a per-visitor view (the pipeline is shown only to the owner),
+ * so this must never be prerendered at build time.
+ */
+export const dynamic = "force-dynamic";
+
 
 export default async function RunsPage() {
-  // Redirects (null session) or 403s (non-allowlisted) before any DB access.
-  await requireAllowedUser();
-
   const db = getDb();
   const runs = await listCrawlRuns(db, { limit: 50 });
 

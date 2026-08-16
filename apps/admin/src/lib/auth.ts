@@ -57,6 +57,28 @@ export async function getSessionEmail(): Promise<string | null> {
  * @param getEmail   Override for the session-email lookup (for unit tests).
  * @returns The allowlisted email address.
  */
+/**
+ * Non-redirecting counterpart to `requireAllowedUser`, for pages that are
+ * readable by anyone.
+ *
+ * The board is public: the listings, scores and difficulty ranking are useful
+ * to anybody looking for work. The pipeline on top of them -- which postings
+ * were applied to or dismissed, and the notes attached to each -- is not, so
+ * pages render that only when this returns an email.
+ *
+ * Returns null for an anonymous visitor and for a signed-in but non-allowlisted
+ * one. Neither is an error here; they simply see the public view.
+ */
+export async function optionalUser(
+  getEmail: () => Promise<string | null> = getSessionEmail,
+): Promise<string | null> {
+  const email = await getEmail();
+  if (!email) return null;
+
+  const csv = process.env.ADMIN_ALLOWED_EMAILS ?? "";
+  return isAllowed(email, csv) ? email : null;
+}
+
 export async function requireAllowedUser(
   getEmail: () => Promise<string | null> = getSessionEmail,
 ): Promise<string> {

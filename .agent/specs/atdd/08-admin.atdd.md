@@ -57,7 +57,7 @@ function listJobs(f: { status?: Status; difficulty?: Difficulty; roleCategory?: 
 
 ## 3. Black-Box Test Cases
 
-All scenarios live in `apps/admin/test/` and run under `pnpm test`. `ADMIN_ALLOWED_EMAILS=admin@superapps.com` in the test env unless stated otherwise.
+All scenarios live in `apps/admin/test/` and run under `pnpm test`. `ADMIN_ALLOWED_EMAILS=owner@example.com` in the test env unless stated otherwise.
 
 Harness notes (apply to every scenario):
 - Each scenario seeds its own rows with distinct `(source, external_id)` pairs and deletes them afterward; scenarios pass when run alone or in any order.
@@ -77,7 +77,7 @@ No scenario relies on visual inspection.
 - **And** no query against the `jobs` table is executed (assert via a spy on the data layer: zero calls).
 
 ### S2 — Authenticated but non-allowlisted email gets 403 (error case)
-- **Given** `getSessionEmail()` resolves to `"intruder@example.com"` and `ADMIN_ALLOWED_EMAILS=admin@superapps.com`
+- **Given** `getSessionEmail()` resolves to `"intruder@example.com"` and `ADMIN_ALLOWED_EMAILS=owner@example.com`
 - **When** the client requests `GET /jobs`
 - **Then** the response status is exactly 403 and the body contains the text `Not authorized`
 - **And** zero data-layer calls are made.

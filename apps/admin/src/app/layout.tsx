@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { optionalUser } from "../lib/auth";
+import { passwordAuthEnabled } from "../lib/password-auth";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -19,19 +21,23 @@ export const metadata: Metadata = {
     "Personal job reconnaissance: curated sources, scored postings, one board.",
 };
 
+/** `owner: true` items are hidden from anonymous visitors. */
 const NAV = [
-  { href: "/", label: "Dashboard" },
-  { href: "/jobs", label: "Board" },
-  { href: "/sources", label: "Sources" },
-  { href: "/criteria", label: "Criteria" },
-  { href: "/runs", label: "Runs" },
+  { href: "/", label: "Dashboard", owner: false },
+  { href: "/jobs", label: "Board", owner: false },
+  { href: "/sources", label: "Sources", owner: false },
+  { href: "/criteria", label: "Criteria", owner: true },
+  { href: "/runs", label: "Runs", owner: false },
 ];
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const owner = await optionalUser();
+  const loginHref = passwordAuthEnabled() ? "/login" : "/auth/login";
+
   return (
     <html lang="en" className={`${fraunces.variable} ${plexMono.variable}`}>
       <body>
@@ -50,7 +56,7 @@ export default function RootLayout({
             <hr className="masthead-rule" />
             <hr />
             <nav className="nav">
-              {NAV.map((item) => (
+              {NAV.filter((item) => !item.owner || owner).map((item) => (
                 <a key={item.href} href={item.href}>
                   {item.label}
                 </a>
@@ -59,8 +65,14 @@ export default function RootLayout({
           </header>
           <main>{children}</main>
           <footer className="footer">
-            <span>JobScout — personal use</span>
-            <span>notifications via Discord</span>
+            <span>JobScout — open board, personal pipeline</span>
+            <span>
+              {owner ? (
+                "signed in · notifications via Discord"
+              ) : (
+                <a href={loginHref}>Owner sign in</a>
+              )}
+            </span>
           </footer>
         </div>
       </body>

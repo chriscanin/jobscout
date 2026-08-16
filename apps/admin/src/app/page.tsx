@@ -1,7 +1,6 @@
 /**
  * / — dashboard: headline numbers, freshest high-score prospects, curated
- * source rollup, and the latest crawl run. Server Component behind
- * requireAllowedUser.
+ * source rollup, and the latest crawl run. Public Server Component.
  */
 import {
   getDashboardStats,
@@ -10,12 +9,20 @@ import {
   type SourceSummary,
 } from "@jobscout/core";
 import { getDb } from "../lib/db";
-import { requireAllowedUser } from "../lib/auth";
+import { optionalUser } from "../lib/auth";
 import { DifficultyChip, Score, StatusChip, shortDate } from "../lib/chips";
 import { SOURCE_META } from "../lib/source-meta";
 
+/**
+ * Live data + a per-visitor view (the pipeline is shown only to the owner),
+ * so this must never be prerendered at build time.
+ */
+export const dynamic = "force-dynamic";
+
+
 export default async function DashboardPage() {
-  await requireAllowedUser();
+  // Public page; the pipeline tiles and status column need an owner.
+  const owner = await optionalUser();
 
   const db = getDb();
   const [stats, prospects, sourceSummaries] = await Promise.all([
@@ -41,17 +48,21 @@ export default async function DashboardPage() {
 
         <div className="stat-grid">
           <div className="stat stat-accent">
-            <div className="label">Inbox</div>
+            <div className="label">{owner ? "Inbox" : "Unreviewed"}</div>
             <div className="value">{inbox}</div>
           </div>
-          <div className="stat stat-warn">
-            <div className="label">Queued</div>
-            <div className="value">{stats.statusCounts.queued ?? 0}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Applied</div>
-            <div className="value">{stats.statusCounts.applied ?? 0}</div>
-          </div>
+          {owner && (
+            <>
+              <div className="stat stat-warn">
+                <div className="label">Queued</div>
+                <div className="value">{stats.statusCounts.queued ?? 0}</div>
+              </div>
+              <div className="stat">
+                <div className="label">Applied</div>
+                <div className="value">{stats.statusCounts.applied ?? 0}</div>
+              </div>
+            </>
+          )}
           <div className="stat">
             <div className="label">New this week</div>
             <div className="value">{stats.jobsLast7Days}</div>
@@ -86,7 +97,7 @@ export default async function DashboardPage() {
                   <th>Company</th>
                   <th className="num">Score</th>
                   <th>Difficulty</th>
-                  <th>Status</th>
+                  {owner && <th>Status</th>}
                   <th>Seen</th>
                 </tr>
               </thead>
@@ -103,9 +114,11 @@ export default async function DashboardPage() {
                     <td>
                       <DifficultyChip value={job.difficulty} />
                     </td>
-                    <td>
-                      <StatusChip value={job.status} />
-                    </td>
+                    {owner && (
+                      <td>
+                        <StatusChip value={job.status} />
+                      </td>
+                    )}
                     <td className="muted">{shortDate(job.first_seen_at)}</td>
                   </tr>
                 ))}

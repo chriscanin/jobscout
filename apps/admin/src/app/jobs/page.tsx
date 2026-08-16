@@ -1,11 +1,11 @@
 /**
  * /jobs — the board: filterable, sortable, paginated posting ledger
  * (spec 08 §3). Server Component: reads via listJobs from @jobscout/core,
- * behind requireAllowedUser.
+ * public: the pipeline columns need a signed-in owner.
  */
 import { Difficulty, RoleCategory, Source, Status, listJobs } from "@jobscout/core";
 import { getDb } from "../../lib/db";
-import { requireAllowedUser } from "../../lib/auth";
+import { optionalUser } from "../../lib/auth";
 import { transitionJobAction } from "../../lib/actions";
 import { DifficultyChip, Score, StatusChip, shortDate } from "../../lib/chips";
 
@@ -33,8 +33,9 @@ export default async function JobsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  // Redirects (null session) or 403s (non-allowlisted) before any DB access.
-  await requireAllowedUser();
+  // Public page. `owner` is null for anonymous visitors, who see the listings
+  // without the pipeline built on top of them.
+  const owner = await optionalUser();
 
   const sp = await searchParams;
   // GET-form selects submit empty strings for "All" — validate against the
@@ -92,19 +93,21 @@ export default async function JobsPage({
 
       <section className="section rise">
         <form method="get" action="/jobs" className="filter-bar">
-          <label>
-            Status
-            <select name="status" defaultValue={status ?? ""}>
-              <option value="">All</option>
-              {(["new", "notified", "queued", "applied", "dismissed", "expired"] as Status[]).map(
-                (s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
+          {owner && (
+            <label>
+              Status
+              <select name="status" defaultValue={status ?? ""}>
+                <option value="">All</option>
+                {(["new", "notified", "queued", "applied", "dismissed", "expired"] as Status[]).map(
+                  (s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+          )}
           <label>
             Difficulty
             <select name="difficulty" defaultValue={difficulty ?? ""}>
@@ -161,9 +164,9 @@ export default async function JobsPage({
                 <th className="num">Score</th>
                 <th>Difficulty</th>
                 <th>Source</th>
-                <th>Status</th>
+                {owner && <th>Status</th>}
                 <th>Seen</th>
-                <th>Actions</th>
+                {owner && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -180,10 +183,13 @@ export default async function JobsPage({
                     <DifficultyChip value={job.difficulty} />
                   </td>
                   <td className="muted">{job.source}</td>
-                  <td>
-                    <StatusChip value={job.status} />
-                  </td>
+                  {owner && (
+                    <td>
+                      <StatusChip value={job.status} />
+                    </td>
+                  )}
                   <td className="muted">{shortDate(job.first_seen_at)}</td>
+                  {owner && (
                   <td>
                     {(job.status === "new" || job.status === "notified") && (
                       <>
@@ -251,11 +257,12 @@ export default async function JobsPage({
                       </form>
                     )}
                   </td>
+                  )}
                 </tr>
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={owner ? 8 : 6}>
                     <p className="empty">No postings match these filters.</p>
                   </td>
                 </tr>

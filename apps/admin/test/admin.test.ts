@@ -70,7 +70,7 @@ function makeRawJob(overrides: Partial<RawJob> = {}): RawJob {
   };
 }
 
-const ALLOWED_EMAIL = "admin@superapps.com";
+const ALLOWED_EMAIL = "owner@example.com";
 const ALLOWED_EMAILS_CSV = ALLOWED_EMAIL;
 
 function allowedSession() {
