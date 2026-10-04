@@ -168,6 +168,15 @@ function consoleLogger(): Logger {
 export async function tryAcquireCrawlLock(dbUrl: string): Promise<CrawlLock | null> {
   const pg = (await import("pg")).default;
   const client = new pg.Client({ connectionString: dbUrl });
+  // This session sits idle for the whole run, and a long classify step gives
+  // the server time to drop it (Neon does when its compute suspends). Without a
+  // listener that 'error' event crashes the process mid-run. A dropped session
+  // has already released the advisory lock server-side, so the run carries on.
+  let dropped = false;
+  client.on("error", (err) => {
+    dropped = true;
+    console.warn(`crawl lock: connection dropped (${err.message}); continuing without the lock`);
+  });
   await client.connect();
   try {
     const res = await client.query("select pg_try_advisory_lock($1) as locked", [
@@ -184,10 +193,14 @@ export async function tryAcquireCrawlLock(dbUrl: string): Promise<CrawlLock | nu
   }
   return {
     release: async () => {
+      if (dropped) return;
       try {
         await client.query("select pg_advisory_unlock($1)", [CRAWL_LOCK_KEY]);
+      } catch (err) {
+        // Closing the session below releases the lock anyway.
+        console.warn(`crawl lock: unlock failed (${errString(err)})`);
       } finally {
-        await client.end();
+        await client.end().catch(() => {});
       }
     },
   };

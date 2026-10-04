@@ -15,6 +15,14 @@ export interface Db {
 /** Production `Db` backed by a pg connection pool. */
 export function createPgDb(connectionString: string): Db {
   const pool = new pg.Pool({ connectionString });
+  // The server can drop an idle pooled connection at any time (Neon does when
+  // its compute suspends or restarts). pg re-emits that on the pool, and an
+  // 'error' event with no listener crashes the process. The pool has already
+  // discarded the dead client and opens a fresh one on the next query, so
+  // logging is all that is needed here.
+  pool.on("error", (err) => {
+    console.warn(`db: idle connection dropped (${err.message}); reconnecting on next query`);
+  });
   return {
     async query(text: string, params?: any[]) {
       const result = await pool.query(text, params);
