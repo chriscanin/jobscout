@@ -258,6 +258,15 @@ table.ledger {
   white-space: nowrap;
 }
 
+.ledger th .sort-link {
+  color: inherit;
+  text-decoration: none;
+}
+.ledger th .sort-link:hover,
+.ledger th .sort-active {
+  color: var(--ink);
+}
+
 .ledger td {
   padding: 0.55rem 0.8rem;
   border-bottom: 1px solid var(--rule);

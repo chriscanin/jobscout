@@ -3,12 +3,43 @@
  * (spec 08 §3). Server Component: reads via listJobs from @jobscout/core,
  * public.
  */
-import { Difficulty, RoleCategory, Source, Status, listJobs } from "@jobscout/core";
+import {
+  Difficulty,
+  JOB_SORTS,
+  RoleCategory,
+  Source,
+  Status,
+  listJobs,
+  type JobSort,
+} from "@jobscout/core";
 import { getDb } from "../../lib/db";
 import { transitionJobAction } from "../../lib/actions";
 import { DifficultyChip, Score, StatusChip, shortDate } from "../../lib/chips";
 
 const PAGE_SIZE = 50;
+
+/** Status filter value that shows every posting, expired ones included. */
+const ALL_STATUSES = "all";
+
+/**
+ * Score filter choices. The default, "Matches", hides the postings the keyword
+ * prescreen scored 0 that nobody has acted on, which is most of the crawl
+ * (sales, ops, Java...). Unscored and queued/applied postings stay visible.
+ */
+const SCORE_OPTIONS = [
+  { value: "matches", label: "Matches" },
+  { value: "50", label: "50+" },
+  { value: "70", label: "70+" },
+  { value: "all", label: "Everything" },
+] as const;
+const DEFAULT_SCORE = "matches";
+
+/** Column header labels for the sortable columns. */
+const SORT_LABELS: Record<JobSort, string> = {
+  posted_at: "Posted date",
+  match_score: "Match score",
+  first_seen_at: "First seen",
+};
 
 /** Return `v` when it is one of `allowed`, else undefined (no filter). */
 function pick<T extends string>(
@@ -23,7 +54,9 @@ interface SearchParams {
   difficulty?: string;
   role_category?: string;
   source?: string;
+  score?: string;
   sort?: string;
+  dir?: string;
   page?: string;
 }
 
@@ -34,16 +67,17 @@ export default async function JobsPage({
 }) {
 
   const sp = await searchParams;
-  // GET-form selects submit empty strings for "All" — validate against the
-  // enum so "" (or junk) means "no filter" instead of a match-nothing filter.
+  // GET-form selects submit empty strings for the default option — validate
+  // against the enum so "" (or junk) means "no filter" instead of a
+  // match-nothing filter. The default hides expired postings; "all" shows them.
   const status = pick(sp.status, Status.options);
+  const showAll = sp.status === ALL_STATUSES;
   const difficulty = pick(sp.difficulty, Difficulty.options);
   const roleCategory = pick(sp.role_category, RoleCategory.options);
   const source = pick(sp.source, Source.options);
-  const sort =
-    sp.sort === "match_score" || sp.sort === "first_seen_at"
-      ? (sp.sort as "match_score" | "first_seen_at")
-      : "first_seen_at";
+  const score = SCORE_OPTIONS.find((o) => o.value === sp.score)?.value ?? DEFAULT_SCORE;
+  const sort = pick(sp.sort, JOB_SORTS) ?? "posted_at";
+  const dir = sp.dir === "asc" ? "asc" : "desc";
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -53,8 +87,11 @@ export default async function JobsPage({
     difficulty,
     roleCategory,
     source,
+    hideExpired: !showAll,
+    hideNonMatches: score === "matches",
+    minScore: score === "50" || score === "70" ? Number(score) : undefined,
     sort,
-    dir: "desc",
+    dir,
     limit: PAGE_SIZE,
     offset,
   });
@@ -64,11 +101,13 @@ export default async function JobsPage({
   function filterUrl(overrides: Record<string, string | undefined>) {
     const params = new URLSearchParams();
     const merged = {
-      status,
+      status: showAll ? ALL_STATUSES : status,
       difficulty,
       role_category: roleCategory,
       source,
+      score,
       sort,
+      dir,
       page: String(page),
       ...overrides,
     };
@@ -76,6 +115,30 @@ export default async function JobsPage({
       if (v) params.set(k, v);
     }
     return `/jobs?${params.toString()}`;
+  }
+
+  /**
+   * A column header that sorts the board by `col`. Clicking the column already
+   * sorted on flips the direction; a new column starts newest / highest first.
+   */
+  function sortHeader(col: JobSort, label: string, className?: string) {
+    const active = sort === col;
+    const nextDir = active && dir === "desc" ? "asc" : "desc";
+    return (
+      <th
+        className={className}
+        aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
+      >
+        <a
+          href={filterUrl({ sort: col, dir: nextDir, page: "1" })}
+          className={active ? "sort-link sort-active" : "sort-link"}
+          title={`Sort by ${SORT_LABELS[col].toLowerCase()}`}
+        >
+          {label}
+          {active && <span aria-hidden="true">{dir === "asc" ? " ↑" : " ↓"}</span>}
+        </a>
+      </th>
+    );
   }
 
   return (
@@ -91,8 +154,9 @@ export default async function JobsPage({
         <form method="get" action="/jobs" className="filter-bar">
           <label>
             Status
-            <select name="status" defaultValue={status ?? ""}>
-              <option value="">All</option>
+            <select name="status" defaultValue={showAll ? ALL_STATUSES : (status ?? "")}>
+              <option value="">Open (hide expired)</option>
+              <option value={ALL_STATUSES}>All</option>
               {(["new", "notified", "queued", "applied", "dismissed", "expired"] as Status[]).map(
                 (s) => (
                   <option key={s} value={s}>
@@ -138,10 +202,30 @@ export default async function JobsPage({
             </select>
           </label>
           <label>
+            Score
+            <select name="score" defaultValue={score}>
+              {SCORE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             Sort
             <select name="sort" defaultValue={sort}>
-              <option value="first_seen_at">First seen</option>
-              <option value="match_score">Match score</option>
+              {JOB_SORTS.map((col) => (
+                <option key={col} value={col}>
+                  {SORT_LABELS[col]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Order
+            <select name="dir" defaultValue={dir}>
+              <option value="desc">Newest / highest first</option>
+              <option value="asc">Oldest / lowest first</option>
             </select>
           </label>
           <button type="submit" className="btn btn-primary">
@@ -155,11 +239,12 @@ export default async function JobsPage({
               <tr>
                 <th>Posting</th>
                 <th>Company</th>
-                <th className="num">Score</th>
+                {sortHeader("match_score", "Score", "num")}
                 <th>Difficulty</th>
                 <th>Source</th>
                 <th>Status</th>
-                <th>Seen</th>
+                {sortHeader("posted_at", "Posted")}
+                {sortHeader("first_seen_at", "Seen")}
                 <th>Actions</th>
               </tr>
             </thead>
@@ -180,6 +265,7 @@ export default async function JobsPage({
                   <td>
                     <StatusChip value={job.status} />
                   </td>
+                  <td className="muted">{shortDate(job.posted_at)}</td>
                   <td className="muted">{shortDate(job.first_seen_at)}</td>
                   <td>
                     {(job.status === "new" || job.status === "notified") && (
@@ -252,7 +338,7 @@ export default async function JobsPage({
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <p className="empty">No postings match these filters.</p>
                   </td>
                 </tr>

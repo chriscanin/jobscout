@@ -136,6 +136,113 @@ describe("listJobs — sort order", () => {
     const pos2 = ids.indexOf(j2.id);
     expect(pos1).toBeLessThan(pos2); // j1 (score 80) comes before j2 (score 40)
   });
+
+  it("sorts by posted_at in either direction, undated postings by first seen", async () => {
+    const { job: older } = await upsertJob(
+      db,
+      makeJob({ externalId: "sort-p-1", postedAt: "2020-01-01T00:00:00Z" }),
+    );
+    const { job: newer } = await upsertJob(
+      db,
+      makeJob({ externalId: "sort-p-2", postedAt: "2020-03-01T00:00:00Z" }),
+    );
+    const { job: undated } = await upsertJob(db, makeJob({ externalId: "sort-p-3" }));
+    await db.query(
+      `UPDATE jobs SET first_seen_at = '2020-02-01T00:00:00Z' WHERE id = $1`,
+      [undated.id],
+    );
+
+    const desc = await listJobs(db, { sort: "posted_at", dir: "desc", limit: 10 });
+    expect(desc.rows.map((r) => r.id)).toEqual([newer.id, undated.id, older.id]);
+
+    const asc = await listJobs(db, { sort: "posted_at", dir: "asc", limit: 10 });
+    expect(asc.rows.map((r) => r.id)).toEqual([older.id, undated.id, newer.id]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listJobs — minScore
+// ---------------------------------------------------------------------------
+describe("listJobs — minScore", () => {
+  it("keeps postings at or above the score and drops unscored ones", async () => {
+    const { job: strong } = await upsertJob(db, makeJob({ externalId: "min-80" }));
+    const { job: edge } = await upsertJob(db, makeJob({ externalId: "min-50" }));
+    const { job: weak } = await upsertJob(db, makeJob({ externalId: "min-0" }));
+    await upsertJob(db, makeJob({ externalId: "min-null" }));
+    await db.query(`UPDATE jobs SET match_score = 80 WHERE id = $1`, [strong.id]);
+    await db.query(`UPDATE jobs SET match_score = 50 WHERE id = $1`, [edge.id]);
+    await db.query(`UPDATE jobs SET match_score = 0 WHERE id = $1`, [weak.id]);
+
+    const fifty = await listJobs(db, { minScore: 50, sort: "match_score" });
+    expect(fifty.rows.map((r) => r.id)).toEqual([strong.id, edge.id]);
+    expect(fifty.total).toBe(2);
+
+    const any = await listJobs(db, { minScore: 1 });
+    expect(any.total).toBe(2);
+
+    const unfiltered = await listJobs(db, {});
+    expect(unfiltered.total).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listJobs — hideNonMatches
+// ---------------------------------------------------------------------------
+describe("listJobs — hideNonMatches", () => {
+  it("drops untouched prescreen rejects but keeps unscored and acted-on postings", async () => {
+    const { job: match } = await upsertJob(db, makeJob({ externalId: "nm-match" }));
+    const { job: reject } = await upsertJob(db, makeJob({ externalId: "nm-reject" }));
+    const { job: unscored } = await upsertJob(db, makeJob({ externalId: "nm-null" }));
+    const { job: applied } = await upsertJob(db, makeJob({ externalId: "nm-applied" }));
+    await db.query(`UPDATE jobs SET match_score = 40 WHERE id = $1`, [match.id]);
+    await db.query(`UPDATE jobs SET match_score = 0 WHERE id = $1`, [reject.id]);
+    await db.query(
+      `UPDATE jobs SET match_score = 0, status = 'applied' WHERE id = $1`,
+      [applied.id],
+    );
+
+    const result = await listJobs(db, { hideNonMatches: true });
+    const ids = result.rows.map((r) => r.id).sort();
+    expect(ids).toEqual([match.id, unscored.id, applied.id].sort());
+    expect(result.total).toBe(3);
+  });
+
+  it("combines with a status filter and a min score", async () => {
+    const { job: a } = await upsertJob(db, makeJob({ externalId: "combo-a" }));
+    const { job: b } = await upsertJob(db, makeJob({ externalId: "combo-b" }));
+    await upsertJob(db, makeJob({ externalId: "combo-c" }));
+    await db.query(`UPDATE jobs SET match_score = 80, status = 'queued' WHERE id = $1`, [a.id]);
+    await db.query(`UPDATE jobs SET match_score = 30, status = 'queued' WHERE id = $1`, [b.id]);
+
+    const result = await listJobs(db, {
+      status: "queued",
+      hideNonMatches: true,
+      minScore: 50,
+    });
+    expect(result.rows.map((r) => r.id)).toEqual([a.id]);
+    expect(result.total).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listJobs — hideExpired
+// ---------------------------------------------------------------------------
+describe("listJobs — hideExpired", () => {
+  it("leaves out expired postings unless a status is asked for", async () => {
+    const { job: open } = await upsertJob(db, makeJob({ externalId: "hide-open" }));
+    const { job: gone } = await upsertJob(db, makeJob({ externalId: "hide-gone" }));
+    await db.query(`UPDATE jobs SET status = 'expired' WHERE id = $1`, [gone.id]);
+
+    const hidden = await listJobs(db, { hideExpired: true });
+    expect(hidden.rows.map((r) => r.id)).toEqual([open.id]);
+    expect(hidden.total).toBe(1);
+
+    const explicit = await listJobs(db, { hideExpired: true, status: "expired" });
+    expect(explicit.rows.map((r) => r.id)).toEqual([gone.id]);
+
+    const all = await listJobs(db, {});
+    expect(all.total).toBe(2);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -16,13 +16,44 @@ import type { Company, CrawlRun, Job } from "./schemas.js";
  * user-supplied values.
  */
 
+/** The columns the board can sort by. */
+export const JOB_SORTS = ["posted_at", "match_score", "first_seen_at"] as const;
+export type JobSort = (typeof JOB_SORTS)[number];
+
+/**
+ * The ORDER BY expression per sort. A posting whose source gives no posted
+ * date sorts by when the crawler first saw it, so it lands among postings of
+ * the same age instead of at the very end.
+ */
+const SORT_EXPR: Record<JobSort, string> = {
+  posted_at: "COALESCE(posted_at, first_seen_at)",
+  match_score: "match_score",
+  first_seen_at: "first_seen_at",
+};
+
 export interface ListJobsFilter {
   status?: Status;
   difficulty?: Difficulty;
   roleCategory?: RoleCategory;
   source?: Source;
-  /** Column to sort by (descending). Default: "first_seen_at" */
-  sort?: "match_score" | "first_seen_at";
+  /**
+   * Leave out expired postings. Ignored when `status` is set, so an explicit
+   * `status: "expired"` filter still works. Default: false
+   */
+  hideExpired?: boolean;
+  /**
+   * Leave out postings the keyword prescreen rejected (match_score 0) that
+   * nobody has acted on (status new or expired). Unscored postings and anything
+   * queued, applied, dismissed or notified stay. Default: false
+   */
+  hideNonMatches?: boolean;
+  /**
+   * Only postings whose match_score is at least this. Unscored postings are
+   * left out whenever it is set. Default: no score filter
+   */
+  minScore?: number;
+  /** Column to sort by. Default: "first_seen_at" */
+  sort?: JobSort;
   /** Sort direction. Default: "desc" */
   dir?: "asc" | "desc";
   /** Page size. Default: 50 */
@@ -50,6 +81,9 @@ export async function listJobs(
     difficulty,
     roleCategory,
     source,
+    hideExpired = false,
+    hideNonMatches = false,
+    minScore,
     sort = "first_seen_at",
     dir = "desc",
     limit = 50,
@@ -76,12 +110,24 @@ export async function listJobs(
     params.push(source);
     conditions.push(`source = $${params.length}`);
   }
+  if (hideExpired && status === undefined) {
+    conditions.push(`status <> 'expired'`);
+  }
+  if (hideNonMatches) {
+    conditions.push(
+      `(match_score IS DISTINCT FROM 0 OR status NOT IN ('new', 'expired'))`,
+    );
+  }
+  if (minScore !== undefined) {
+    params.push(minScore);
+    conditions.push(`match_score >= $${params.length}`);
+  }
 
   const where =
     conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // sort column is a fixed enum — safe to interpolate
-  const sortCol = sort === "match_score" ? "match_score" : "first_seen_at";
+  // sort expression comes from a fixed map — safe to interpolate
+  const sortExpr = SORT_EXPR[JOB_SORTS.includes(sort) ? sort : "first_seen_at"];
   const sortDir = dir === "asc" ? "ASC" : "DESC";
 
   // Count query (reuse same params)
@@ -96,7 +142,7 @@ export async function listJobs(
   const offsetParam = params.length + 2;
   const rowsResult = await db.query(
     `SELECT * FROM jobs ${where}
-     ORDER BY ${sortCol} ${sortDir} NULLS LAST
+     ORDER BY ${sortExpr} ${sortDir} NULLS LAST, first_seen_at DESC, id
      LIMIT $${limitParam} OFFSET $${offsetParam}`,
     [...params, limit, offset],
   );

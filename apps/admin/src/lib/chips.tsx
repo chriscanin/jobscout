@@ -18,10 +18,18 @@ export function Score({ value }: { value: number | null }) {
   return <span className={`score ${tone}`}>{value}</span>;
 }
 
-/** Compact "Jul 28" date for ledger cells; em-dash when missing. */
-export function shortDate(iso: string | null): string {
+/**
+ * Compact "Jul 28" date for ledger cells, with the year added ("Jul 28, 2025")
+ * when it is not the current year; em-dash when missing.
+ */
+export function shortDate(iso: string | Date | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
