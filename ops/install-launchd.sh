@@ -15,12 +15,15 @@ set -euo pipefail
 OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$OPS_DIR/.." && pwd)"
 
-# Node 22 bin dir: prefer the dir of the `node` on PATH; fall back to the nvm
-# path this repo pins. This is what makes the install portable across Macs.
-if command -v node >/dev/null 2>&1; then
+# Put a Node 22+ toolchain first on PATH. Use the `node` already on PATH when it
+# is new enough (nvm default, Homebrew, etc.); otherwise fall back to the nvm
+# path this repo pins (CONTRACT §Stack). launchd starts jobs with a bare PATH,
+# and an interactive shell can default to an older nvm Node, which pnpm 11
+# refuses to run on, so the version is checked rather than assumed.
+NODE_BIN="$HOME/.nvm/versions/node/v22.21.1/bin"
+if command -v node >/dev/null 2>&1 \
+  && [ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)" -ge 22 ] 2>/dev/null; then
   NODE_BIN="$(dirname "$(command -v node)")"
-else
-  NODE_BIN="$HOME/.nvm/versions/node/v22.21.1/bin"
 fi
 
 LOG_DIR="$HOME/Library/Logs/jobscout"
