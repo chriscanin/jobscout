@@ -41,6 +41,14 @@ import type { LlmClient } from "./llm.js";
 const MAX_BATCH = 8;
 
 /**
+ * Jobs that pass the prescreen are scored this many at a time, and each chunk
+ * is written before the next is scored, so stopping a long local-model run
+ * keeps everything scored so far. A multiple of MAX_BATCH so every model
+ * request still carries a full batch.
+ */
+export const SCORE_PERSIST_CHUNK = MAX_BATCH * 4;
+
+/**
  * Job description slice sent to the scorer. Truncated harder than the cloud
  * default so the batched prompt fits a local model's context window.
  */
@@ -651,9 +659,11 @@ export interface ClassifierStats {
 /**
  * The classify pipeline step (CONTRACT §Crawl pipeline; spec 05 §2). Selects
  * unclassified rows, scores then ranks them, and persists outcomes per job
- * with the exact guarded UPDATEs (so a mid-batch crash loses nothing already
- * written and unwritten jobs are retried next run). Returns the stats to fold
- * into `crawl_runs.stats.classifier`.
+ * with the exact guarded UPDATEs. Prescreen rejects (no model call) are written
+ * first, then the survivors chunk by chunk (SCORE_PERSIST_CHUNK), so a crash or
+ * a kill partway through keeps what was already scored and only the unwritten
+ * jobs are retried next run. Returns the stats to fold into
+ * `crawl_runs.stats.classifier`.
  */
 export async function classifyPendingJobs(
   db: Db,
@@ -661,24 +671,33 @@ export async function classifyPendingJobs(
   deps: ClassifierDeps,
 ): Promise<ClassifierStats> {
   const errors: string[] = [];
+  let scored = 0;
 
   // scoreMatch: SELECT * FROM jobs WHERE match_score IS NULL (spec 05 §2).
   const toScore = await db.query(
     `select * from jobs where match_score is null`,
   );
-  const scoreResult = await scoreMatch(
-    toScore.rows as Job[],
-    criteria,
-    deps,
-  );
-  errors.push(...scoreResult.errors);
-  for (const o of scoreResult.outcomes) {
-    await db.query(
-      `update jobs set role_category = $2, match_score = $3, match_reasons = $4,
-                       remote_us_ok = $5
-       where id = $1 and match_score is null`,
-      [o.jobId, o.roleCategory, o.matchScore, o.matchReasons, o.remoteUsOk],
-    );
+  const rejected: Job[] = [];
+  const survivors: Job[] = [];
+  for (const job of toScore.rows as Job[]) {
+    (prescreen(job, criteria).excluded ? rejected : survivors).push(job);
+  }
+  const chunks = [rejected];
+  for (let i = 0; i < survivors.length; i += SCORE_PERSIST_CHUNK) {
+    chunks.push(survivors.slice(i, i + SCORE_PERSIST_CHUNK));
+  }
+  for (const chunk of chunks) {
+    const scoreResult = await scoreMatch(chunk, criteria, deps);
+    errors.push(...scoreResult.errors);
+    for (const o of scoreResult.outcomes) {
+      await db.query(
+        `update jobs set role_category = $2, match_score = $3, match_reasons = $4,
+                         remote_us_ok = $5
+         where id = $1 and match_score is null`,
+        [o.jobId, o.roleCategory, o.matchScore, o.matchReasons, o.remoteUsOk],
+      );
+    }
+    scored += scoreResult.outcomes.length;
   }
 
   // rankDifficulty: SELECT * FROM jobs
@@ -697,7 +716,7 @@ export async function classifyPendingJobs(
   }
 
   return {
-    scored: scoreResult.outcomes.length,
+    scored,
     ranked: rankResult.outcomes.length,
     errors,
   };

@@ -30,6 +30,7 @@ import {
   type RawJob,
 } from "@jobscout/core";
 import {
+  SCORE_PERSIST_CHUNK,
   classifyPendingJobs,
   prescreen,
   rankDifficulty,
@@ -298,6 +299,59 @@ describe("S2 — 8-job batch is one default-tier call updating all 8 rows", () =
       expect(r.match_reasons.length).toBeLessThanOrEqual(3);
       expect(r.remote_us_ok).toBe(true);
     }
+  });
+
+  it("writes prescreen rejects before any model call, and each chunk before the next", async () => {
+    const { job: reject } = await upsertJob(db, {
+      source: "greenhouse",
+      externalId: "gh-sales",
+      url: "https://example.com/sales",
+      title: "Account Executive",
+      company: "SalesCo",
+      raw: {},
+    });
+    const survivorIds: string[] = [];
+    for (let i = 0; i <= SCORE_PERSIST_CHUNK; i++) {
+      const { job } = await upsertJob(db, {
+        source: "greenhouse",
+        externalId: `gh-chunk-${i}`,
+        url: `https://example.com/chunk/${i}`,
+        title: `React Native Engineer ${i}`,
+        company: `Company ${i}`,
+        raw: {},
+      });
+      survivorIds.push(job.id);
+    }
+
+    const scoredWhenCalled: number[] = [];
+    const llm = mockLlm(async (req) => {
+      const r = await db.query(`select count(*)::int as n from jobs where match_score is not null`);
+      scoredWhenCalled.push(r.rows[0].n);
+      const ids = survivorIds.filter((id) => req.user.includes(id));
+      return JSON.stringify(
+        ids.map((id) => ({
+          id,
+          role_category: "react-native",
+          match_score: 80,
+          match_reasons: ["react native"],
+          remote_us_ok: true,
+        })),
+      );
+    });
+
+    const stats = await classifyPendingJobs(db, DEFAULT_CRITERIA, {
+      llm,
+      fetchHtml: async () => "",
+    });
+
+    // The reject was already written when the model was first called...
+    expect(scoredWhenCalled[0]).toBe(1);
+    // ...and the first full chunk was written before the leftover job was sent.
+    const chunkCalls = SCORE_PERSIST_CHUNK / 8;
+    expect(scoredWhenCalled[chunkCalls]).toBe(1 + SCORE_PERSIST_CHUNK);
+    expect(stats.scored).toBe(2 + SCORE_PERSIST_CHUNK);
+    const r = await db.query(`select match_score from jobs where id = $1`, [reject.id]);
+    expect(r.rows[0].match_score).toBe(0);
   });
 
   it("persists remote_us_ok = false when the model returns false (non-US/hybrid job)", async () => {
