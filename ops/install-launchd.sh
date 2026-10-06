@@ -28,8 +28,7 @@ fi
 
 LOG_DIR="$HOME/Library/Logs/jobscout"
 LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
-RUN_CRAWL_SH="$OPS_DIR/run-crawl.sh"
-RUN_SOURCES_SH="$OPS_DIR/run-sources.sh"
+RUN_NIGHTLY_SH="$OPS_DIR/run-nightly.sh"
 
 echo "jobscout: installing LaunchAgents"
 echo "  project dir : $PROJECT_DIR"
@@ -38,7 +37,7 @@ echo "  log dir     : $LOG_DIR"
 
 # The wrappers self-resolve the project dir and Node bin at runtime, so they
 # need no substitution — just make sure they are executable.
-chmod +x "$RUN_CRAWL_SH" "$RUN_SOURCES_SH"
+chmod +x "$RUN_NIGHTLY_SH" "$OPS_DIR/run-crawl.sh" "$OPS_DIR/run-sources.sh"
 
 # --- Ensure the directories exist -------------------------------------------
 mkdir -p "$LOG_DIR"
@@ -64,7 +63,15 @@ install_agent() {
   echo "jobscout: LaunchAgent installed and loaded ($installed)"
 }
 
-install_agent "com.jobscout.crawl" "__RUN_CRAWL_SH__" "$RUN_CRAWL_SH"
-install_agent "com.jobscout.sources" "__RUN_SOURCES_SH__" "$RUN_SOURCES_SH"
+install_agent "com.jobscout.crawl" "__RUN_NIGHTLY_SH__" "$RUN_NIGHTLY_SH"
 
-echo "jobscout: crawl runs every 12 hours, sources once a day; logs in $LOG_DIR"
+# The sources sweep used to be its own daily agent; it now runs inside the
+# nightly job so the local model is loaded once. Remove the old agent if present.
+OLD_SOURCES="$LAUNCH_AGENTS_DIR/com.jobscout.sources.plist"
+if [ -f "$OLD_SOURCES" ]; then
+  launchctl unload "$OLD_SOURCES" 2>/dev/null || true
+  rm -f "$OLD_SOURCES"
+  echo "jobscout: removed the old com.jobscout.sources agent"
+fi
+
+echo "jobscout: sources + crawl run nightly at 3:00am local time (AC power only); logs in $LOG_DIR"

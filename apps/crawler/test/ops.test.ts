@@ -44,14 +44,16 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
     expect(stdout.trim()).toBe("com.jobscout.crawl");
   });
 
-  it("StartInterval extracts to 43200 (twice daily)", async () => {
-    const { stdout } = await run("plutil", ["-extract", "StartInterval", "raw", PLIST]);
-    expect(stdout.trim()).toBe("43200");
+  it("StartCalendarInterval is 3:00am (nightly)", async () => {
+    const hour = await run("plutil", ["-extract", "StartCalendarInterval.Hour", "raw", PLIST]);
+    const minute = await run("plutil", ["-extract", "StartCalendarInterval.Minute", "raw", PLIST]);
+    expect(hour.stdout.trim()).toBe("3");
+    expect(minute.stdout.trim()).toBe("0");
   });
 
-  it("RunAtLoad is true", async () => {
+  it("RunAtLoad is false, so installing never starts a model run", async () => {
     const { stdout } = await run("plutil", ["-extract", "RunAtLoad", "raw", PLIST]);
-    expect(stdout.trim()).toBe("true");
+    expect(stdout.trim()).toBe("false");
   });
 
   it("StandardOutPath and StandardErrorPath contain Library/Logs/jobscout/", async () => {
@@ -73,6 +75,7 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
       PLIST,
     ]);
     const strings = [...stdout.matchAll(/<string>([^<]*)<\/string>/g)].map((m) => m[1]);
+    expect(strings.some((s) => s.endsWith("run-nightly.sh") || s === "__RUN_NIGHTLY_SH__")).toBe(true);
     const idx = strings.indexOf("--trigger");
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(strings[idx + 1]).toBe("launchd");
@@ -85,39 +88,10 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
     expect(uninstall.code).toBe(0);
   });
 
-  it("run-crawl.sh passes bash -n", async () => {
-    const wrapper = await run("bash", ["-n", path.join(OPS, "run-crawl.sh")]);
-    expect(wrapper.code).toBe(0);
-  });
-});
-
-describe("curated-sources launchd plist is valid and correctly configured", () => {
-  const SOURCES_PLIST = path.join(OPS, "com.jobscout.sources.plist");
-
-  it("plutil -lint exits 0", async () => {
-    const { code } = await run("plutil", ["-lint", SOURCES_PLIST]);
-    expect(code).toBe(0);
-  });
-
-  it("Label extracts to com.jobscout.sources", async () => {
-    const { stdout } = await run("plutil", ["-extract", "Label", "raw", SOURCES_PLIST]);
-    expect(stdout.trim()).toBe("com.jobscout.sources");
-  });
-
-  it("StartInterval extracts to 86400 (daily)", async () => {
-    const { stdout } = await run("plutil", ["-extract", "StartInterval", "raw", SOURCES_PLIST]);
-    expect(stdout.trim()).toBe("86400");
-  });
-
-  it("StandardOutPath and StandardErrorPath contain Library/Logs/jobscout/", async () => {
-    const out = await run("plutil", ["-extract", "StandardOutPath", "raw", SOURCES_PLIST]);
-    const err = await run("plutil", ["-extract", "StandardErrorPath", "raw", SOURCES_PLIST]);
-    expect(out.stdout).toContain("Library/Logs/jobscout/");
-    expect(err.stdout).toContain("Library/Logs/jobscout/");
-  });
-
-  it("run-sources.sh passes bash -n", async () => {
-    const wrapper = await run("bash", ["-n", path.join(OPS, "run-sources.sh")]);
-    expect(wrapper.code).toBe(0);
+  it("run-nightly.sh, run-crawl.sh and run-sources.sh pass bash -n", async () => {
+    for (const script of ["run-nightly.sh", "run-crawl.sh", "run-sources.sh"]) {
+      const wrapper = await run("bash", ["-n", path.join(OPS, script)]);
+      expect(wrapper.code).toBe(0);
+    }
   });
 });
