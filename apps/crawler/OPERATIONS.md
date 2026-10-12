@@ -11,8 +11,8 @@ Run from the repo root (Node 22 must be on PATH — on the dev Mac:
 
 | Command | What it does |
 |---|---|
-| `pnpm crawl` | One full crawl cycle (default trigger `manual`). Add `-- --trigger launchd\|manual\|loop` to override. |
-| `pnpm loop -- --interval <minutes>` | Foreground standing loop: run a cycle, sleep `<minutes>`, repeat until Ctrl-C (trigger `loop`). |
+| `pnpm crawl` | One full crawl cycle (default trigger `manual`). Add `--trigger launchd\|manual\|loop` to override. |
+| `pnpm loop --interval <minutes>` | Foreground standing loop: run a cycle, sleep `<minutes>`, repeat until Ctrl-C (trigger `loop`). |
 | `pnpm discover` | Web-search company discovery (separate from crawl). Prints how many companies were added. |
 | `pnpm doctor` | Machine readiness check. Exit 0 all green, exit 1 otherwise, naming every failing check. |
 | `pnpm db:push` | Apply `supabase/migrations/*.sql` to the DB named by `SUPABASE_DB_URL`. |

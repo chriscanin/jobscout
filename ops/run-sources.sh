@@ -32,4 +32,4 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 
-exec pnpm -C apps/crawler sources -- "$@"
+exec pnpm -C apps/crawler sources "$@"

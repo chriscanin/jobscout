@@ -39,5 +39,6 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 # Pass through any launchd args (e.g. --trigger launchd) to the crawl command.
-# The `--` forwards args past the pnpm script into `tsx src/cli.ts crawl`.
-exec pnpm -C apps/crawler crawl -- "$@"
+# pnpm 11 forwards script args as-is; a `--` here would reach the CLI too and
+# make it treat `--trigger launchd` as positional, recording the run as manual.
+exec pnpm -C apps/crawler crawl "$@"
