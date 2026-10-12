@@ -641,3 +641,41 @@ details.run .run-body {
   letter-spacing: 0.13em;
   color: var(--ink-faint);
 }
+
+/* ── People: who is signed in, invite links ─────────────────────────────── */
+.nav-viewer {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.form-error {
+  color: var(--rust);
+  margin: 0 0 1rem;
+}
+
+.invite-link {
+  flex-basis: 100%;
+}
+.invite-link p {
+  margin: 0 0 0.4rem;
+  font-size: 12.5px;
+}
+.invite-link input {
+  width: 100%;
+}
+
+details.confirm {
+  display: inline-block;
+  margin-left: 0.35rem;
+}
+details.confirm summary {
+  list-style: none;
+  cursor: pointer;
+}
+details.confirm summary::-webkit-details-marker { display: none; }
+details.confirm[open] summary { display: none; }

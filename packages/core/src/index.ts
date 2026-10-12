@@ -7,3 +7,4 @@ export * from "./adapter.js";
 export * from "./db.js";
 export * from "./data.js";
 export * from "./queries.js";
+export * from "./people.js";

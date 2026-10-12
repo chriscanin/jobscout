@@ -3,6 +3,7 @@ import {
   Ats,
   Difficulty,
   DiscoveredVia,
+  PersonStatus,
   RoleCategory,
   Source,
   Status,
@@ -52,6 +53,29 @@ export const Job = z.object({
   raw: z.unknown().nullable(),
 });
 export type Job = z.infer<typeof Job>;
+
+/** A row of the `people` table, minus the token hash (never leaves the DB layer). */
+export const Person = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  is_owner: z.boolean(),
+  created_at: z.string(),
+  last_seen_at: z.string().nullable(),
+});
+export type Person = z.infer<typeof Person>;
+
+/** A row of the `person_jobs` table: one person's status and notes on one posting. */
+export const PersonJob = z.object({
+  person_id: z.string().uuid(),
+  job_id: z.string().uuid(),
+  status: PersonStatus.nullable(),
+  notes: z.string().nullable(),
+  queued_at: z.string().nullable(),
+  applied_at: z.string().nullable(),
+  dismissed_at: z.string().nullable(),
+  updated_at: z.string(),
+});
+export type PersonJob = z.infer<typeof PersonJob>;
 
 /** A row of the `companies` table (CONTRACT §Database schema → companies). */
 export const Company = z.object({

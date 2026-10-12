@@ -111,3 +111,11 @@ export const Status = z.enum([
   "expired",
 ]);
 export type Status = z.infer<typeof Status>;
+
+/**
+ * One person's own decision on a posting (person_jobs.status). The crawler's
+ * lifecycle (new / notified / expired) stays on jobs.status; these three are
+ * per person, so friends sharing the board each keep their own queue.
+ */
+export const PersonStatus = z.enum(["queued", "applied", "dismissed"]);
+export type PersonStatus = z.infer<typeof PersonStatus>;

@@ -12,6 +12,7 @@
     "sources": "tsx src/cli.ts sources",
     "doctor": "tsx src/cli.ts doctor",
     "classify": "tsx src/classify.ts",
+    "invite": "tsx src/invite.ts",
     "db:push": "tsx src/db-push.ts",
     "e2e": "vitest run test/e2e"
   },

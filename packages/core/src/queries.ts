@@ -3,6 +3,7 @@ import type {
   CuratedSourceKey,
   Difficulty,
   DiscoveredVia,
+  PersonStatus,
   RoleCategory,
   Source,
   Status,
@@ -26,10 +27,13 @@ export type JobSort = (typeof JOB_SORTS)[number];
  * the same age instead of at the very end.
  */
 const SORT_EXPR: Record<JobSort, string> = {
-  posted_at: "COALESCE(posted_at, first_seen_at)",
-  match_score: "match_score",
-  first_seen_at: "first_seen_at",
+  posted_at: "COALESCE(j.posted_at, j.first_seen_at)",
+  match_score: "j.match_score",
+  first_seen_at: "j.first_seen_at",
 };
+
+/** Filter on the viewer's own tracking: untouched postings, or one status. */
+export type MineFilter = "unreviewed" | PersonStatus;
 
 export interface ListJobsFilter {
   status?: Status;
@@ -43,8 +47,8 @@ export interface ListJobsFilter {
   hideExpired?: boolean;
   /**
    * Leave out postings the keyword prescreen rejected (match_score 0) that
-   * nobody has acted on (status new or expired). Unscored postings and anything
-   * queued, applied, dismissed or notified stay. Default: false
+   * nobody has acted on (status new or expired, and, with a viewer, no status
+   * of theirs). Unscored postings and anything acted on stay. Default: false
    */
   hideNonMatches?: boolean;
   /**
@@ -52,6 +56,16 @@ export interface ListJobsFilter {
    * left out whenever it is set. Default: no score filter
    */
   minScore?: number;
+  /**
+   * The person looking at the board. Each row then carries their own
+   * `my_status` and `my_notes`, and the `mine` / `hideMyDismissed` filters
+   * apply. Without it both columns are null and those filters do nothing.
+   */
+  viewerId?: string;
+  /** Only postings the viewer has not touched, or has given this status. */
+  mine?: MineFilter;
+  /** Leave out postings the viewer dismissed. Default: false */
+  hideMyDismissed?: boolean;
   /** Column to sort by. Default: "first_seen_at" */
   sort?: JobSort;
   /** Sort direction. Default: "desc" */
@@ -62,8 +76,14 @@ export interface ListJobsFilter {
   offset?: number;
 }
 
+/** A board row: the job plus the viewer's own status and notes (null without a viewer). */
+export type BoardJob = Job & {
+  my_status: PersonStatus | null;
+  my_notes: string | null;
+};
+
 export interface ListJobsResult {
-  rows: Job[];
+  rows: BoardJob[];
   total: number;
 }
 
@@ -84,43 +104,67 @@ export async function listJobs(
     hideExpired = false,
     hideNonMatches = false,
     minScore,
+    viewerId,
+    mine,
+    hideMyDismissed = false,
     sort = "first_seen_at",
     dir = "desc",
     limit = 50,
     offset = 0,
   } = filter;
 
-  // Build WHERE clauses dynamically using numbered params
+  // Build WHERE clauses dynamically using numbered params. jobs is aliased `j`
+  // and person_jobs `pj`: both have status and notes columns.
   const conditions: string[] = [];
   const params: unknown[] = [];
 
+  let join = "";
+  let mineCols = "NULL::text AS my_status, NULL::text AS my_notes";
+  if (viewerId !== undefined) {
+    params.push(viewerId);
+    join = `LEFT JOIN person_jobs pj ON pj.job_id = j.id AND pj.person_id = $${params.length}`;
+    mineCols = "pj.status AS my_status, pj.notes AS my_notes";
+  }
+
   if (status !== undefined) {
     params.push(status);
-    conditions.push(`status = $${params.length}`);
+    conditions.push(`j.status = $${params.length}`);
   }
   if (difficulty !== undefined) {
     params.push(difficulty);
-    conditions.push(`difficulty = $${params.length}`);
+    conditions.push(`j.difficulty = $${params.length}`);
   }
   if (roleCategory !== undefined) {
     params.push(roleCategory);
-    conditions.push(`role_category = $${params.length}`);
+    conditions.push(`j.role_category = $${params.length}`);
   }
   if (source !== undefined) {
     params.push(source);
-    conditions.push(`source = $${params.length}`);
+    conditions.push(`j.source = $${params.length}`);
   }
   if (hideExpired && status === undefined) {
-    conditions.push(`status <> 'expired'`);
+    conditions.push(`j.status <> 'expired'`);
   }
   if (hideNonMatches) {
+    const actedOnByViewer = viewerId !== undefined ? " OR pj.status IS NOT NULL" : "";
     conditions.push(
-      `(match_score IS DISTINCT FROM 0 OR status NOT IN ('new', 'expired'))`,
+      `(j.match_score IS DISTINCT FROM 0 OR j.status NOT IN ('new', 'expired')${actedOnByViewer})`,
     );
   }
   if (minScore !== undefined) {
     params.push(minScore);
-    conditions.push(`match_score >= $${params.length}`);
+    conditions.push(`j.match_score >= $${params.length}`);
+  }
+  if (viewerId !== undefined && mine !== undefined) {
+    if (mine === "unreviewed") {
+      conditions.push(`pj.status IS NULL`);
+    } else {
+      params.push(mine);
+      conditions.push(`pj.status = $${params.length}`);
+    }
+  }
+  if (viewerId !== undefined && hideMyDismissed) {
+    conditions.push(`pj.status IS DISTINCT FROM 'dismissed'`);
   }
 
   const where =
@@ -132,7 +176,7 @@ export async function listJobs(
 
   // Count query (reuse same params)
   const countResult = await db.query(
-    `SELECT COUNT(*) AS total FROM jobs ${where}`,
+    `SELECT COUNT(*) AS total FROM jobs j ${join} ${where}`,
     params,
   );
   const total = parseInt(String(countResult.rows[0].total), 10);
@@ -141,13 +185,13 @@ export async function listJobs(
   const limitParam = params.length + 1;
   const offsetParam = params.length + 2;
   const rowsResult = await db.query(
-    `SELECT * FROM jobs ${where}
-     ORDER BY ${sortExpr} ${sortDir} NULLS LAST, first_seen_at DESC, id
+    `SELECT j.*, ${mineCols} FROM jobs j ${join} ${where}
+     ORDER BY ${sortExpr} ${sortDir} NULLS LAST, j.first_seen_at DESC, j.id
      LIMIT $${limitParam} OFFSET $${offsetParam}`,
     [...params, limit, offset],
   );
 
-  return { rows: rowsResult.rows as Job[], total };
+  return { rows: rowsResult.rows as BoardJob[], total };
 }
 
 /**
@@ -244,10 +288,20 @@ export interface DashboardStats {
   /** Companies added by the curated sources (non seed/web-search/manual). */
   curatedCompanies: number;
   latestRun: CrawlRun | null;
+  /**
+   * Open postings the keyword prescreen did not reject (match_score not 0, so
+   * unscored ones count). With a viewer, only those they have not acted on.
+   */
+  openMatches: number;
+  /** The viewer's own counts; null without a viewer. */
+  mine: Record<PersonStatus, number> | null;
 }
 
-/** Aggregate the dashboard headline numbers. */
-export async function getDashboardStats(db: Db): Promise<DashboardStats> {
+/** Aggregate the dashboard headline numbers, from `viewerId`'s point of view when given. */
+export async function getDashboardStats(
+  db: Db,
+  viewerId?: string,
+): Promise<DashboardStats> {
   const statusRes = await db.query(
     `SELECT status, COUNT(*)::int AS n FROM jobs GROUP BY status`,
   );
@@ -270,6 +324,30 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
   );
   const runs = await listCrawlRuns(db, { limit: 1 });
 
+  const openRes = await db.query(
+    viewerId === undefined
+      ? `SELECT COUNT(*)::int AS n FROM jobs
+         WHERE status <> 'expired' AND match_score IS DISTINCT FROM 0`
+      : `SELECT COUNT(*)::int AS n FROM jobs j
+         LEFT JOIN person_jobs pj ON pj.job_id = j.id AND pj.person_id = $1
+         WHERE j.status <> 'expired' AND j.match_score IS DISTINCT FROM 0
+           AND pj.status IS NULL`,
+    viewerId === undefined ? [] : [viewerId],
+  );
+
+  let mine: Record<PersonStatus, number> | null = null;
+  if (viewerId !== undefined) {
+    mine = { queued: 0, applied: 0, dismissed: 0 };
+    const mineRes = await db.query(
+      `SELECT status, COUNT(*)::int AS n FROM person_jobs
+       WHERE person_id = $1 AND status IS NOT NULL GROUP BY status`,
+      [viewerId],
+    );
+    for (const row of mineRes.rows as Array<{ status: PersonStatus; n: number }>) {
+      mine[row.status] = row.n;
+    }
+  }
+
   return {
     totalJobs,
     jobsLast7Days: (weekRes.rows[0] as { n: number }).n,
@@ -277,6 +355,8 @@ export async function getDashboardStats(db: Db): Promise<DashboardStats> {
     totalCompanies: (companiesRes.rows[0] as { total: number }).total,
     curatedCompanies: (companiesRes.rows[0] as { curated: number }).curated,
     latestRun: runs[0] ?? null,
+    openMatches: (openRes.rows[0] as { n: number }).n,
+    mine,
   };
 }
 

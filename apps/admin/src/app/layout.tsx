@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { getViewer } from "../lib/viewer";
+import { signOutAction } from "../lib/actions";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -27,11 +29,13 @@ const NAV = [
   { href: "/runs", label: "Runs" },
 ];
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const viewer = await getViewer();
+  const nav = viewer?.is_owner ? [...NAV, { href: "/people", label: "People" }] : NAV;
   return (
     <html lang="en" className={`${fraunces.variable} ${plexMono.variable}`}>
       <body>
@@ -50,16 +54,24 @@ export default function RootLayout({
             <hr className="masthead-rule" />
             <hr />
             <nav className="nav">
-              {NAV.map((item) => (
+              {nav.map((item) => (
                 <a key={item.href} href={item.href}>
                   {item.label}
                 </a>
               ))}
+              {viewer && (
+                <form action={signOutAction} className="nav-viewer">
+                  <span>{viewer.name}</span>
+                  <button type="submit" className="btn btn-quiet">
+                    Sign out
+                  </button>
+                </form>
+              )}
             </nav>
           </header>
           <main>{children}</main>
           <footer className="footer">
-            <span>JobScout — personal use</span>
+            <span>JobScout · shared with friends</span>
             <span>notifications via Discord</span>
           </footer>
         </div>

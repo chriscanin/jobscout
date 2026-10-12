@@ -1,4 +1,4 @@
-import type { Status } from "./enums.js";
+import type { PersonStatus, Status } from "./enums.js";
 
 /**
  * The status machine from CONTRACT §Status machine. Pure, no DB.
@@ -34,6 +34,31 @@ export const ALLOWED_TRANSITIONS: ReadonlyArray<readonly [Status, Status]> = [
 
 export function isAllowedTransition(from: Status, to: Status): boolean {
   return ALLOWED_TRANSITIONS.some(([f, t]) => f === from && t === to);
+}
+
+/**
+ * One person's moves on a posting (person_jobs.status). "new" stands for "no
+ * decision yet". Same shape as the board's old global moves: queue or dismiss
+ * a fresh posting, mark a queued one applied or dismiss it, and undo back to
+ * queued.
+ */
+export const PERSONAL_TRANSITIONS: ReadonlyArray<
+  readonly ["new" | PersonStatus, PersonStatus]
+> = [
+  ["new", "queued"],
+  ["new", "dismissed"],
+  ["queued", "applied"],
+  ["queued", "dismissed"],
+  ["applied", "queued"],
+  ["dismissed", "queued"],
+];
+
+export function isAllowedPersonalTransition(
+  from: PersonStatus | null,
+  to: PersonStatus,
+): boolean {
+  const f = from ?? "new";
+  return PERSONAL_TRANSITIONS.some(([a, b]) => a === f && b === to);
 }
 
 /**

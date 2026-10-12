@@ -1,8 +1,15 @@
 # @jobscout/admin
 
-Personal, single-user admin for the JobScout queue. Next.js (App Router),
-Auth0-gated with an email allowlist, deployed to Vercel. Four surfaces behind
-one nav bar: `/jobs`, `/jobs/[id]`, `/criteria`, `/runs`.
+The JobScout board, shared with friends. Next.js (App Router), deployed to
+Vercel. Browsing is public; each person tracks postings (queue, applied,
+dismissed, private notes) after opening their invite link, which sets an
+httpOnly cookie (`lib/viewer.ts`, `app/join/page.tsx`). The token travels in the
+URL fragment (`/join#<token>`), so it never reaches request logs. The owner adds
+people on `/people` and is the only one who can edit `/criteria`. Every Server
+Action checks the signed-in person itself (`lib/actions.ts`).
+
+The Auth0 / password-gate code below is the board's earlier access model. It is
+still in the repo and tested, but no page calls it.
 
 All database access and every secret are **server-only**. The Postgres
 connection and the Auth0 client are constructed lazily at request time, so

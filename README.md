@@ -83,23 +83,31 @@ postings.
 
 ## The board
 
-A Next.js App Router app over the same Postgres database, and it is **entirely
-public** — no account, no login, nothing gated. Browse the postings, filter by
-difficulty and score, read the match reasoning, see which sources found which
-companies, and check the crawl history.
+A Next.js App Router app over the same Postgres database. Browsing is
+**public**: no account, no login. Sort by posted date, filter by difficulty and
+score, read the match reasoning, see which sources found which companies, and
+check the crawl history.
 
-It began as a private admin panel behind Auth0, then a password gate. Both are
-gone, because a job board that asks for a password is not much of a job board.
-The auth helper survives in `lib/auth.ts`, unused and tested; adding
-`await requireAllowedUser()` to the top of a page or Server Action puts the gate
-back, and nothing else would need to change.
+It is shared with friends, and **each person keeps their own queue**. The owner
+adds a person on `/people` and sends them the invite link it shows once;
+opening the link signs that browser in. From then on they can queue, mark
+applied, dismiss and keep private notes, and none of it touches anyone else's
+view. Only a hash of each link is stored. The owner alone can change the
+scoring criteria and manage people. The first owner link comes from the CLI:
+
+```sh
+pnpm -C apps/crawler invite "Your Name" --owner
+```
+
+It began as a private admin panel behind Auth0, then a password gate. The auth
+helper survives in `lib/auth.ts`, unused and tested.
 
 ## Layout
 
 ```
 apps/
   crawler/     the pipeline: adapters, discovery, classifier, notifier, CLI
-  admin/       Next.js board (public read, owner-only writes)
+  admin/       Next.js board (public browsing, per-person tracking via invite links)
 packages/
   core/        schemas, enums, queries, dedup, status machine — shared, typed
 supabase/

@@ -9,7 +9,8 @@ import {
   type SourceSummary,
 } from "@jobscout/core";
 import { getDb } from "../lib/db";
-import { DifficultyChip, Score, StatusChip, shortDate } from "../lib/chips";
+import { DifficultyChip, Score, shortDate } from "../lib/chips";
+import { getViewer } from "../lib/viewer";
 import { SOURCE_META } from "../lib/source-meta";
 
 /**
@@ -18,22 +19,38 @@ import { SOURCE_META } from "../lib/source-meta";
 export const dynamic = "force-dynamic";
 
 
-export default async function DashboardPage() {
-
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ join?: string }>;
+}) {
+  const { join } = await searchParams;
+  const viewer = await getViewer();
   const db = getDb();
   const [stats, prospects, sourceSummaries] = await Promise.all([
-    getDashboardStats(db),
-    listJobs(db, { status: "new", sort: "match_score", limit: 8 }),
+    getDashboardStats(db, viewer?.id),
+    // Best open postings the viewer has not acted on yet (all open ones when
+    // nobody is signed in).
+    listJobs(db, {
+      viewerId: viewer?.id,
+      mine: viewer ? "unreviewed" : undefined,
+      hideExpired: true,
+      sort: "match_score",
+      limit: 8,
+    }),
     listSourceSummaries(db).catch((): SourceSummary[] => []),
   ]);
 
-  const inbox =
-    (stats.statusCounts.new ?? 0) + (stats.statusCounts.notified ?? 0);
   const run = stats.latestRun;
 
   return (
     <div>
       <section className="rise">
+        {join === "invalid" && (
+          <p className="form-error">
+            That invite link does not work any more. Ask for a new one.
+          </p>
+        )}
         <p className="kicker">Situation report</p>
         <h1>The week&apos;s reconnaissance</h1>
         <p className="lede">
@@ -44,17 +61,21 @@ export default async function DashboardPage() {
 
         <div className="stat-grid">
           <div className="stat stat-accent">
-            <div className="label">Inbox</div>
-            <div className="value">{inbox}</div>
+            <div className="label">{stats.mine ? "To review" : "Open matches"}</div>
+            <div className="value">{stats.openMatches}</div>
           </div>
-          <div className="stat stat-warn">
-            <div className="label">Queued</div>
-            <div className="value">{stats.statusCounts.queued ?? 0}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Applied</div>
-            <div className="value">{stats.statusCounts.applied ?? 0}</div>
-          </div>
+          {stats.mine && (
+            <>
+              <div className="stat stat-warn">
+                <div className="label">My queue</div>
+                <div className="value">{stats.mine.queued}</div>
+              </div>
+              <div className="stat">
+                <div className="label">Applied</div>
+                <div className="value">{stats.mine.applied}</div>
+              </div>
+            </>
+          )}
           <div className="stat">
             <div className="label">New this week</div>
             <div className="value">{stats.jobsLast7Days}</div>
@@ -73,7 +94,8 @@ export default async function DashboardPage() {
         <div className="section-head">
           <h2>Top prospects</h2>
           <span className="count">
-            unreviewed, by match score · <a href="/jobs">full board →</a>
+            {viewer ? "not reviewed by you" : "open"}, by match score ·{" "}
+            <a href="/jobs">full board →</a>
           </span>
         </div>
         {prospects.rows.length === 0 ? (
@@ -89,8 +111,7 @@ export default async function DashboardPage() {
                   <th>Company</th>
                   <th className="num">Score</th>
                   <th>Difficulty</th>
-                  <th>Status</th>
-                  <th>Seen</th>
+                  <th>Posted</th>
                 </tr>
               </thead>
               <tbody>
@@ -106,10 +127,7 @@ export default async function DashboardPage() {
                     <td>
                       <DifficultyChip value={job.difficulty} />
                     </td>
-                    <td>
-                      <StatusChip value={job.status} />
-                    </td>
-                    <td className="muted">{shortDate(job.first_seen_at)}</td>
+                    <td className="muted">{shortDate(job.posted_at)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -2,13 +2,13 @@
  * Shared presentational atoms for the ledger UI: difficulty/status chips and
  * the tinted match-score number. Pure markup — no data access.
  */
-import type { Difficulty, Status } from "@jobscout/core";
+import type { Difficulty, PersonStatus, Status } from "@jobscout/core";
 
 export function DifficultyChip({ value }: { value: Difficulty }) {
   return <span className={`chip chip-${value}`}>{value}</span>;
 }
 
-export function StatusChip({ value }: { value: Status }) {
+export function StatusChip({ value }: { value: Status | PersonStatus }) {
   return <span className={`chip chip-status-${value}`}>{value}</span>;
 }
 

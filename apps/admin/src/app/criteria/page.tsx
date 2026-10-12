@@ -5,6 +5,7 @@
  */
 import { getCriteria } from "@jobscout/core";
 import { getDb } from "../../lib/db";
+import { getViewer } from "../../lib/viewer";
 import { updateCriteriaAction } from "../../lib/actions";
 
 /**
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function CriteriaPage() {
 
   const db = getDb();
-  const criteria = await getCriteria(db);
+  const [criteria, viewer] = await Promise.all([getCriteria(db), getViewer()]);
 
   return (
     <div>
@@ -24,14 +25,19 @@ export default async function CriteriaPage() {
         <p className="kicker">The brief</p>
         <h1>Matching criteria</h1>
         <p className="lede">
-          Edit the JSON and save — the next crawl scores against it. Invalid
-          JSON or schema violations write nothing.
+          {viewer?.is_owner
+            ? "Edit the JSON and save; the next crawl scores against it. Invalid JSON or schema violations write nothing."
+            : "What every posting is scored against. Only the board owner can change it."}
         </p>
       </section>
 
       <section className="section rise">
         <div className="panel">
-          <CriteriaForm defaultValue={criteria} />
+          {viewer?.is_owner ? (
+            <CriteriaForm defaultValue={criteria} />
+          ) : (
+            <pre className="raw">{JSON.stringify(criteria, null, 2)}</pre>
+          )}
         </div>
       </section>
     </div>

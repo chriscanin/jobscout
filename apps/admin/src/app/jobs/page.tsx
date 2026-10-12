@@ -1,25 +1,40 @@
 /**
  * /jobs — the board: filterable, sortable, paginated posting ledger
- * (spec 08 §3). Server Component: reads via listJobs from @jobscout/core,
- * public.
+ * (spec 08 §3). Server Component: reads via listJobs from @jobscout/core.
+ * Public to browse; a signed-in person (lib/viewer) sees and moves their own
+ * status on each posting.
  */
 import {
   Difficulty,
   JOB_SORTS,
   RoleCategory,
   Source,
-  Status,
   listJobs,
   type JobSort,
 } from "@jobscout/core";
 import { getDb } from "../../lib/db";
+import { getViewer } from "../../lib/viewer";
 import { transitionJobAction } from "../../lib/actions";
 import { DifficultyChip, Score, StatusChip, shortDate } from "../../lib/chips";
+import { movesFor } from "../../lib/moves";
 
 const PAGE_SIZE = 50;
 
-/** Status filter value that shows every posting, expired ones included. */
-const ALL_STATUSES = "all";
+/**
+ * Status filter choices. The default ("") is Open: everything not expired,
+ * minus what the viewer dismissed. The personal views need a signed-in person
+ * and are not offered (or honoured) otherwise.
+ */
+const STATUS_VIEWS = [
+  { value: "", label: "Open", personal: false },
+  { value: "unreviewed", label: "Not reviewed by me", personal: true },
+  { value: "queued", label: "My queue", personal: true },
+  { value: "applied", label: "I applied", personal: true },
+  { value: "dismissed", label: "I dismissed", personal: true },
+  { value: "expired", label: "Expired", personal: false },
+  { value: "all", label: "All", personal: false },
+] as const;
+type StatusView = (typeof STATUS_VIEWS)[number]["value"];
 
 /**
  * Score filter choices. The default, "Matches", hides the postings the keyword
@@ -67,11 +82,12 @@ export default async function JobsPage({
 }) {
 
   const sp = await searchParams;
+  const viewer = await getViewer();
   // GET-form selects submit empty strings for the default option — validate
-  // against the enum so "" (or junk) means "no filter" instead of a
-  // match-nothing filter. The default hides expired postings; "all" shows them.
-  const status = pick(sp.status, Status.options);
-  const showAll = sp.status === ALL_STATUSES;
+  // against the known values so "" (or junk) means the default instead of a
+  // match-nothing filter.
+  const statusViews = STATUS_VIEWS.filter((v) => viewer || !v.personal);
+  const view: StatusView = statusViews.find((v) => v.value === sp.status)?.value ?? "";
   const difficulty = pick(sp.difficulty, Difficulty.options);
   const roleCategory = pick(sp.role_category, RoleCategory.options);
   const source = pick(sp.source, Source.options);
@@ -83,11 +99,17 @@ export default async function JobsPage({
 
   const db = getDb();
   const { rows, total } = await listJobs(db, {
-    status,
+    viewerId: viewer?.id,
+    status: view === "expired" ? "expired" : undefined,
+    mine:
+      view === "unreviewed" || view === "queued" || view === "applied" || view === "dismissed"
+        ? view
+        : undefined,
+    hideExpired: view === "" || view === "unreviewed",
+    hideMyDismissed: view === "",
     difficulty,
     roleCategory,
     source,
-    hideExpired: !showAll,
     hideNonMatches: score === "matches",
     minScore: score === "50" || score === "70" ? Number(score) : undefined,
     sort,
@@ -101,7 +123,7 @@ export default async function JobsPage({
   function filterUrl(overrides: Record<string, string | undefined>) {
     const params = new URLSearchParams();
     const merged = {
-      status: showAll ? ALL_STATUSES : status,
+      status: view || undefined,
       difficulty,
       role_category: roleCategory,
       source,
@@ -148,22 +170,23 @@ export default async function JobsPage({
         <h1>
           Postings <span style={{ color: "var(--ink-faint)" }}>({total})</span>
         </h1>
+        {!viewer && (
+          <p className="lede">
+            Browsing only. To keep your own queue, open the invite link you were sent.
+          </p>
+        )}
       </section>
 
       <section className="section rise">
         <form method="get" action="/jobs" className="filter-bar">
           <label>
             Status
-            <select name="status" defaultValue={showAll ? ALL_STATUSES : (status ?? "")}>
-              <option value="">Open (hide expired)</option>
-              <option value={ALL_STATUSES}>All</option>
-              {(["new", "notified", "queued", "applied", "dismissed", "expired"] as Status[]).map(
-                (s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ),
-              )}
+            <select name="status" defaultValue={view}>
+              {statusViews.map((v) => (
+                <option key={v.value} value={v.value}>
+                  {v.label}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -245,7 +268,7 @@ export default async function JobsPage({
                 <th>Status</th>
                 {sortHeader("posted_at", "Posted")}
                 {sortHeader("first_seen_at", "Seen")}
-                <th>Actions</th>
+                {viewer && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -263,82 +286,42 @@ export default async function JobsPage({
                   </td>
                   <td className="muted">{job.source}</td>
                   <td>
-                    <StatusChip value={job.status} />
+                    {job.my_status ? (
+                      <StatusChip value={job.my_status} />
+                    ) : job.status === "expired" ? (
+                      <StatusChip value="expired" />
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                   <td className="muted">{shortDate(job.posted_at)}</td>
                   <td className="muted">{shortDate(job.first_seen_at)}</td>
-                  <td>
-                    {(job.status === "new" || job.status === "notified") && (
-                      <>
+                  {viewer && (
+                    <td>
+                      {movesFor(job.my_status).map((move) => (
                         <form
+                          key={move.to}
                           action={async () => {
                             "use server";
-                            await transitionJobAction(job.id, "queued");
+                            await transitionJobAction(job.id, move.to);
                           }}
                           className="inline-form"
                         >
-                          <button type="submit" className="btn btn-primary">
-                            Queue
+                          <button
+                            type="submit"
+                            className={move.primary ? "btn btn-primary" : "btn btn-quiet"}
+                          >
+                            {move.label}
                           </button>
                         </form>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await transitionJobAction(job.id, "dismissed");
-                          }}
-                          className="inline-form"
-                        >
-                          <button type="submit" className="btn btn-quiet">
-                            Dismiss
-                          </button>
-                        </form>
-                      </>
-                    )}
-                    {job.status === "queued" && (
-                      <>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await transitionJobAction(job.id, "applied");
-                          }}
-                          className="inline-form"
-                        >
-                          <button type="submit" className="btn btn-primary">
-                            Applied
-                          </button>
-                        </form>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await transitionJobAction(job.id, "dismissed");
-                          }}
-                          className="inline-form"
-                        >
-                          <button type="submit" className="btn btn-quiet">
-                            Dismiss
-                          </button>
-                        </form>
-                      </>
-                    )}
-                    {(job.status === "applied" || job.status === "dismissed") && (
-                      <form
-                        action={async () => {
-                          "use server";
-                          await transitionJobAction(job.id, "queued");
-                        }}
-                        className="inline-form"
-                      >
-                        <button type="submit" className="btn btn-quiet">
-                          Undo
-                        </button>
-                      </form>
-                    )}
-                  </td>
+                      ))}
+                    </td>
+                  )}
                 </tr>
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={viewer ? 9 : 8}>
                     <p className="empty">No postings match these filters.</p>
                   </td>
                 </tr>
