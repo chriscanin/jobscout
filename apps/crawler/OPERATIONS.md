@@ -1,7 +1,7 @@
 # jobscout crawler — operations
 
 The crawler is an appliance: install it once on a Mac and matching jobs show up
-in Discord after the nightly 3am run. All state lives in Supabase, so the crawler machine is
+in Discord after the daily 9am run. All state lives in Supabase, so the crawler machine is
 disposable — moving to a new Mac is mechanical (CONTRACT §Portability).
 
 ## Commands
@@ -42,22 +42,17 @@ a crash cannot wedge the system.
 
 ## Scheduling (macOS launchd)
 
-`ops/com.jobscout.crawl.plist` is a LaunchAgent that runs `ops/run-nightly.sh`
-at 3:00am local time (`StartCalendarInterval`, no `RunAtLoad`), logging to
-`~/Library/Logs/jobscout/`. The nightly script runs the curated `sources`
+`ops/com.jobscout.crawl.plist` is a LaunchAgent that runs `ops/run-daily.sh`
+at 9:00am local time (`StartCalendarInterval`, no `RunAtLoad`), logging to
+`~/Library/Logs/jobscout/`. The daily script runs the curated `sources`
 sweep, then one crawl (`ops/run-crawl.sh --trigger launchd`), with the local LM
 Studio model loaded only for the run and unloaded after (unless it was already
 loaded). Each step runs under `caffeinate -is` so the Mac stays awake on AC
 power.
 
-launchd fires a missed calendar job as soon as the Mac wakes, so the script
-skips itself unless it is on AC power and between 2am and 6am. That keeps a
-32B model off the battery and out of the working day. For the Mac to be awake
-at 3am, schedule a wake once (needs an admin password):
-
-```sh
-sudo pmset repeat wakeorpoweron MTWRFSU 02:55:00
-```
+If the Mac is asleep at 9am, launchd fires the job when it wakes. The script
+skips itself on battery power, since a 32B local model on battery overheats
+the laptop; the next day's run picks up whatever was missed.
 
 `ops/run-crawl.sh` and `ops/run-sources.sh` remain for manual runs: each
 resolves the repo root from its own path, puts Node 22 on PATH, loads `.env`,
@@ -76,7 +71,7 @@ Setting up a new machine, or rebuilding after one dies, is five mechanical steps
    and this machine's `$HOME`, substitutes them into
    `ops/com.jobscout.crawl.plist`, creates `~/Library/Logs/jobscout/`, copies the
    plist to `~/Library/LaunchAgents/`, and `launchctl load`s it. Idempotent —
-   safe to re-run. Then schedule the 2:55am wake above.
+   safe to re-run.
 
 ### Decommission the old Mac
 

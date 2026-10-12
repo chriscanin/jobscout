@@ -44,10 +44,10 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
     expect(stdout.trim()).toBe("com.jobscout.crawl");
   });
 
-  it("StartCalendarInterval is 3:00am (nightly)", async () => {
+  it("StartCalendarInterval is 9:00am (daily)", async () => {
     const hour = await run("plutil", ["-extract", "StartCalendarInterval.Hour", "raw", PLIST]);
     const minute = await run("plutil", ["-extract", "StartCalendarInterval.Minute", "raw", PLIST]);
-    expect(hour.stdout.trim()).toBe("3");
+    expect(hour.stdout.trim()).toBe("9");
     expect(minute.stdout.trim()).toBe("0");
   });
 
@@ -75,7 +75,7 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
       PLIST,
     ]);
     const strings = [...stdout.matchAll(/<string>([^<]*)<\/string>/g)].map((m) => m[1]);
-    expect(strings.some((s) => s.endsWith("run-nightly.sh") || s === "__RUN_NIGHTLY_SH__")).toBe(true);
+    expect(strings.some((s) => s.endsWith("run-daily.sh") || s === "__RUN_DAILY_SH__")).toBe(true);
     const idx = strings.indexOf("--trigger");
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(strings[idx + 1]).toBe("launchd");
@@ -88,8 +88,8 @@ describe("Scenario 7 — launchd plist is valid and correctly configured", () =>
     expect(uninstall.code).toBe(0);
   });
 
-  it("run-nightly.sh, run-crawl.sh and run-sources.sh pass bash -n", async () => {
-    for (const script of ["run-nightly.sh", "run-crawl.sh", "run-sources.sh"]) {
+  it("run-daily.sh, run-crawl.sh and run-sources.sh pass bash -n", async () => {
+    for (const script of ["run-daily.sh", "run-crawl.sh", "run-sources.sh"]) {
       const wrapper = await run("bash", ["-n", path.join(OPS, script)]);
       expect(wrapper.code).toBe(0);
     }

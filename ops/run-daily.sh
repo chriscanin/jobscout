@@ -1,25 +1,18 @@
 #!/bin/bash
 #
-# jobscout nightly run: curated sources, then one full crawl, with the local
-# LM Studio model loaded only for the duration. launchd starts it at 3am local
-# time (ops/com.jobscout.crawl.plist); extra args (e.g. `--trigger launchd`)
-# pass through to the crawl.
+# jobscout daily run: curated sources, then one full crawl, with the local
+# LM Studio model loaded only for the duration. launchd starts it at 9am local
+# time (ops/com.jobscout.crawl.plist), or on wake if the Mac was asleep then;
+# extra args (e.g. `--trigger launchd`) pass through to the crawl.
 #
-# Guards, because launchd fires a missed calendar job as soon as the Mac wakes:
-#   - skip unless on AC power (a 32B local model on battery overheats the laptop)
-#   - skip outside 2am-6am local, so a missed night never lands mid-day
+# Skips unless on AC power: a 32B local model on battery overheats the laptop.
 set -euo pipefail
 
 OPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$OPS_DIR/.." && pwd)"
 
-log() { echo "$(date '+%Y-%m-%d %H:%M:%S') nightly: $*"; }
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') daily: $*"; }
 
-HOUR=$((10#$(date +%H)))
-if [ "$HOUR" -lt 2 ] || [ "$HOUR" -ge 6 ]; then
-  log "outside the 2am-6am window (hour $HOUR); skipping"
-  exit 0
-fi
 if ! pmset -g batt | grep -q "AC Power"; then
   log "on battery power; skipping"
   exit 0

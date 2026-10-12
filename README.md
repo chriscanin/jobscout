@@ -49,7 +49,7 @@ Sorting by "easy, high score, posted today" is the whole product in one query.
 
 ## Where postings come from
 
-**Ten job sources**, crawled nightly at 3am:
+**Ten job sources**, crawled daily at 9am:
 
 - Six ATS APIs — Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee
 - Four search feeds — the monthly HN *Who is hiring?* thread via Algolia,

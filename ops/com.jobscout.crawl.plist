@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  jobscout nightly LaunchAgent (spec 07 §3; CONTRACT §Portability).
+  jobscout daily LaunchAgent (spec 07 §3; CONTRACT §Portability).
 
-  Runs ops/run-nightly.sh at 3:00am local time: curated sources, then one
-  full crawl, with the local LM Studio model loaded only for the run. No
+  Runs ops/run-daily.sh at 9:00am local time: curated sources, then one full
+  crawl, with the local LM Studio model loaded only for the run. No
   RunAtLoad, so installing or logging in never starts a GPU-heavy run. If the
-  Mac is asleep at 3am, launchd fires the job on wake and run-nightly.sh skips
-  it unless it is still 2am-6am and on AC power.
+  Mac is asleep at 9am, launchd fires the job on wake; run-daily.sh skips it
+  when on battery power.
 
   This file is the TEMPLATE. ops/install-launchd.sh substitutes the two
   __PLACEHOLDER__ tokens for the current machine and copies the result to
@@ -15,7 +15,7 @@
   values (an absolute path and a HOME path) so `plutil -lint` passes on this
   template BEFORE substitution as well as after.
 
-  - __RUN_NIGHTLY_SH__ -> absolute path to ops/run-nightly.sh on this machine
+  - __RUN_DAILY_SH__   -> absolute path to ops/run-daily.sh on this machine
   - __HOME__           -> the installing user's $HOME (for the log paths)
 -->
 <plist version="1.0">
@@ -26,7 +26,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>__RUN_NIGHTLY_SH__</string>
+    <string>__RUN_DAILY_SH__</string>
     <string>--trigger</string>
     <string>launchd</string>
   </array>
@@ -34,7 +34,7 @@
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key>
-    <integer>3</integer>
+    <integer>9</integer>
     <key>Minute</key>
     <integer>0</integer>
   </dict>

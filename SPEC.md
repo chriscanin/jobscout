@@ -30,7 +30,7 @@ Personal AI job search engine. A standing crawl loop finds React Native / React 
 
 ## Runtime & migration plan
 
-- **Now:** develop and run on the main Mac. `pnpm crawl` for one cycle, `pnpm loop` for a foreground standing loop, launchd (`ops/`) for the nightly 3am schedule.
+- **Now:** develop and run on the main Mac. `pnpm crawl` for one cycle, `pnpm loop` for a foreground standing loop, launchd (`ops/`) for the daily 9am schedule.
 - **Later:** move to the dedicated Mac: clone repo → copy `.env` → `pnpm install` → `pnpm doctor` green → `ops/install-launchd.sh`. Unload launchd on the old Mac. Nothing else to migrate — jobs, criteria, and run history all live in Supabase.
 
 ## External accounts needed before implementation
